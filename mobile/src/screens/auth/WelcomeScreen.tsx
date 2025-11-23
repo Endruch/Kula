@@ -1,30 +1,56 @@
-// src/screens/auth/WelcomeScreen.tsx
+// ═══════════════════════════════════════════════════════
+// WELCOME SCREEN - ЭКРАН ПРИВЕТСТВИЯ
+// ═══════════════════════════════════════════════════════
+// Первый экран который видит незалогиненный пользователь
+// Кнопки: Войти / Создать аккаунт / Тест Backend
+// ═══════════════════════════════════════════════════════
+
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
-import { api } from '../../services/api';
+import axios from 'axios';
+import { API_URL } from '../../services/api';
 
 export default function WelcomeScreen({ navigation }: any) {
   const [backendStatus, setBackendStatus] = useState('Проверяем...');
 
   useEffect(() => {
-    // Проверяем что backend работает
-    api.healthCheck()
-      .then(data => {
-        setBackendStatus('✅ Backend подключён!');
-        console.log('Backend response:', data);
-      })
-      .catch(err => {
-        setBackendStatus('❌ Backend не подключён');
-        console.error('Backend error:', err.message);
-      });
+    console.log('👋 WelcomeScreen loaded');
+    checkBackend();
   }, []);
 
+  // Проверка подключения к backend
+  const checkBackend = async () => {
+    try {
+      // Проверяем root endpoint
+      const baseUrl = API_URL.replace('/api', '');
+      const response = await axios.get(baseUrl, { timeout: 3000 });
+      
+      if (response.data?.message) {
+        setBackendStatus('✅ Backend доступен');
+        console.log('✅ Backend connected:', response.data.message);
+      }
+    } catch (error) {
+      setBackendStatus('❌ Backend недоступен');
+      console.log('❌ Backend not connected');
+    }
+  };
+
+  // Тест подключения (кнопка)
   const testBackend = async () => {
     try {
-      const data = await api.test();
-      Alert.alert('Успех!', `Backend ответил: ${data.message}`);
-    } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось подключиться к backend');
+      const baseUrl = API_URL.replace('/api', '');
+      const response = await axios.get(baseUrl, { timeout: 3000 });
+      
+      Alert.alert(
+        'Успех! 🎉', 
+        `Backend ответил:\n${response.data?.message || 'OK'}`
+      );
+    } catch (error: any) {
+      Alert.alert(
+        'Ошибка', 
+        `Не удалось подключиться к backend\n\nURL: ${API_URL}\n\nПроверь что backend запущен!`
+      );
+      console.error('Backend test failed:', error.message);
     }
   };
 

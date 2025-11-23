@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import MainTabNavigator from './MainTabNavigator';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import CreateEventScreen from '../screens/create/CreateEventScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,13 +31,23 @@ export default function RootNavigator() {
         animation: 'slide_from_right',
       }}
     >
-      {isLoggedIn ? (
-        <Stack.Screen 
-          name="Profile" 
-          component={ProfileScreen}
-          initialParams={{ user: userData }}
-        />
-      ) : (
+{isLoggedIn ? (
+  <>
+    <Stack.Screen 
+      name="Main" 
+      component={MainTabNavigator}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen 
+      name="CreateEvent" 
+      component={CreateEventScreen}
+      options={{ 
+        headerShown: false,
+        presentation: 'modal',
+      }}
+    />
+  </>
+) : (
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />

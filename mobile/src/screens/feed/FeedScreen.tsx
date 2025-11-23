@@ -1,0 +1,214 @@
+// ═══════════════════════════════════════════════════════
+// FEED SCREEN - ЛЕНТА СОБЫТИЙ
+// ═══════════════════════════════════════════════════════
+// Загружает события из backend и показывает как рилсы
+// Автообновляется при переходе на вкладку
+// ═══════════════════════════════════════════════════════
+
+import React, { useState, useRef } from 'react';
+import { 
+  View, 
+  FlatList, 
+  Dimensions, 
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Text
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import EventVideo from '../../components/feed/EventVideo';
+import EventCard from '../../components/feed/EventCard';
+import { eventsAPI } from '../../services/api';
+
+const { height } = Dimensions.get('window');
+
+export default function FeedScreen() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList>(null);
+
+  // Загружаем события когда экран в фокусе
+  useFocusEffect(
+    React.useCallback(() => {
+      loadEvents();
+    }, [])
+  );
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await eventsAPI.getAll();
+      console.log('✅ События загружены:', data.length);
+      
+      // Преобразуем данные для совместимости
+      const formattedEvents = data.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        location: event.location,
+        dateTime: event.dateTime,
+        participants: event.participants || 0,
+        maxParticipants: event.maxParticipants,
+        likes: event.likes || 0,
+        comments: event.comments || 0,
+        videoUrl: event.videoUrl,
+        creator: {
+          id: event.creator.id,
+          name: event.creator.username,
+        },
+      }));
+
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error('Ошибка загрузки событий:', error);
+      Alert.alert('Ошибка', 'Не удалось загрузить события');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Когда пользователь свайпнул
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index || 0);
+    }
+  }).current;
+
+  // Когда нажали "Участвовать"
+  const handleParticipate = (eventId: string) => {
+    Alert.alert(
+      'Участие подтверждено! 🎉',
+      'Скоро добавим запись в backend',
+      [{ text: 'ОК' }]
+    );
+  };
+
+  // Когда нажали "Лайк"
+  const handleLike = (eventId: string) => {
+    console.log('Лайк для события:', eventId);
+    // TODO: отправить на backend
+  };
+
+  // Когда нажали "Комментарии"
+  const handleComment = (eventId: string) => {
+    Alert.alert(
+      'Комментарии',
+      'Скоро добавим экран комментариев!',
+      [{ text: 'ОК' }]
+    );
+  };
+
+  // Когда нажали на профиль создателя
+  const handleProfilePress = (creatorId: string) => {
+    Alert.alert(
+      'Профиль',
+      `Скоро откроется профиль пользователя ${creatorId}`,
+      [{ text: 'ОК' }]
+    );
+  };
+
+  // Рендерим каждое событие
+  const renderItem = ({ item, index }: any) => (
+    <View style={styles.itemContainer}>
+      {/* Видео на фоне */}
+      <EventVideo 
+        videoUrl={item.videoUrl} 
+        isActive={index === activeIndex}
+      />
+      
+      {/* Информация поверх видео */}
+      <EventCard 
+        event={item}
+        onParticipate={() => handleParticipate(item.id)}
+        onLike={() => handleLike(item.id)}
+        onComment={() => handleComment(item.id)}
+        onProfilePress={() => handleProfilePress(item.creator.id)}
+      />
+    </View>
+  );
+
+  // Пока загружаются события
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00D4AA" />
+        <Text style={styles.loadingText}>Загружаем события...</Text>
+      </View>
+    );
+  }
+
+  // Если событий нет
+  if (events.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>📅</Text>
+        <Text style={styles.emptyText}>Пока нет событий</Text>
+        <Text style={styles.emptySubtext}>Создай первое событие!</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={events}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+        snapToInterval={height}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{
+          itemVisiblePercentThreshold: 50,
+        }}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  itemContainer: {
+    height: height,
+    width: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+});
