@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables
+.env
+backend/.env
+mobile/.env
+
+# Database
+*.db
+*.sqlite
+
+# Expo
+.expo/
+mobile/.expo/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Build
+dist/
+build/
