@@ -1,3 +1,18 @@
+// ═══════════════════════════════════════════════════════
+// PRISMA SCHEMA - СХЕМА БАЗЫ ДАННЫХ
+// ═══════════════════════════════════════════════════════
+// Описание всех таблиц и связей в базе данных
+//
+// Таблицы:
+// - User: пользователи
+// - Event: события
+// - EventParticipant: участие в событиях (связь многие-ко-многим)
+//
+// Связи:
+// - User → Event (один-ко-многим) - создатель события
+// - User → EventParticipant → Event (многие-ко-многим) - участники
+// ═══════════════════════════════════════════════════════
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,16 +22,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ═══════════════════════════════════════════════════════
+// USER - ПОЛЬЗОВАТЕЛЬ
+// ═══════════════════════════════════════════════════════
+// Поля:
+// - id: уникальный ID (UUID)
+// - email: email (уникальный)
+// - username: имя пользователя (уникальное)
+// - password: хэш пароля (bcrypt)
+// - createdAt: дата регистрации
+// - updatedAt: дата последнего обновления
+//
+// Связи:
+// - events: события созданные пользователем
+// - participations: события в которых участвует
+// ═══════════════════════════════════════════════════════
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  name          String
-  dateOfBirth   DateTime
-  city          String
-  videoAvatarUrl String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String             @id @default(uuid())
+  email             String             @unique
+  username          String             @unique
+  password          String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   
-  @@map("users")
+  // Связи
+  events            Event[]            @relation("EventCreator")
+  participations    EventParticipant[]
+}
+
+// ═══════════════════════════════════════════════════════
+// EVENT - СОБЫТИЕ
+// ═══════════════════════════════════════════════════════
+// Поля:
+// - id: уникальный ID (UUID)
+// - title: название события
+// - description: описание (опционально)
+// - location: место проведения (адрес)
+// - dateTime: дата и время события
+// - category: категория (sport, party, cafe, etc)
+// - maxParticipants: максимум участников
+// - videoUrl: ссылка на видео рилс
+// - creatorId: ID создателя (связь с User)
+// - createdAt: дата создания
+// - updatedAt: дата обновления
+//
+// Связи:
+// - creator: создатель события (User)
+// - participants: участники события (EventParticipant)
+// ═══════════════════════════════════════════════════════
+model Event {
+  id                String             @id @default(uuid())
+  title             String
+  description       String?
+  location          String
+  dateTime          DateTime
+  category          String
+  maxParticipants   Int                @default(10)
+  videoUrl          String
+  creatorId         String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Связи
+  creator           User               @relation("EventCreator", fields: [creatorId], references: [id])
+  participants      EventParticipant[]
+}
+
+// ═══════════════════════════════════════════════════════
+// EVENT PARTICIPANT - УЧАСТНИК СОБЫТИЯ
+// ═══════════════════════════════════════════════════════
+// Промежуточная таблица для связи многие-ко-многим
+// между User и Event
+//
+// Поля:
+// - id: уникальный ID (UUID)
+// - eventId: ID события
+// - userId: ID пользователя
+// - joinedAt: дата присоединения
+//
+// Связи:
+// - event: событие (Event)
+// - user: пользователь (User)
+//
+// Ограничения:
+// - уникальная пара (eventId, userId) - нельзя присоединиться дважды
+// ═══════════════════════════════════════════════════════
+model EventParticipant {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  joinedAt  DateTime @default(now())
+  
+  // Связи
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Уникальное ограничение: один пользователь - одно событие
+  @@unique([eventId, userId])
 }
