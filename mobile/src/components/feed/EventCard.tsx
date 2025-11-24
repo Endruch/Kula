@@ -19,6 +19,7 @@ interface Event {
   maxParticipants: number;
   likes: number;
   comments: number;
+  isLiked: boolean; 
   creator: {
     id: string;
     name: string;
@@ -40,12 +41,9 @@ export default function EventCard({
   onComment,
   onProfilePress 
 }: EventCardProps) {
-  const [isLiked, setIsLiked] = useState(false);
-
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    onLike();
-  };
+const handleLike = () => {
+  onLike();
+};
 
   return (
     <View style={styles.container}>
@@ -70,9 +68,9 @@ export default function EventCard({
           onPress={handleLike}
           activeOpacity={0.7}
         >
-          <Text style={styles.actionIcon}>
-            {isLiked ? '❤️' : '🤍'}
-          </Text>
+        <Text style={styles.actionIcon}>
+          {event.isLiked ? '❤️' : '🤍'}
+        </Text>
           <Text style={styles.actionCount}>{event.likes}</Text>
         </TouchableOpacity>
 

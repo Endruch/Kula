@@ -30,9 +30,13 @@ app.use(express.json());
 // Routes
 const authRoutes = require('./routes/auth');
 const eventsRoutes = require('./routes/events');
+const likesRoutes = require('./routes/likes');
+const commentsRoutes = require('./routes/comments');
 
 app.use('/api/auth', authRoutes);
-app.use('/api/events', eventsRoutes);
+app.use('/api/events', eventsRoutes)
+app.use('/api/likes', likesRoutes);
+app.use('/api/comments', commentsRoutes); 
 
 // Health check
 app.get('/', (req, res) => {

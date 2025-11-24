@@ -18,7 +18,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import EventVideo from '../../components/feed/EventVideo';
 import EventCard from '../../components/feed/EventCard';
-import { eventsAPI } from '../../services/api';
+import CommentsModal from '../../components/feed/CommentsModal';
+import { eventsAPI, likesAPI } from '../../services/api';
+import { getToken } from '../../services/auth';
 
 const { height } = Dimensions.get('window');
 
@@ -26,6 +28,8 @@ export default function FeedScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commentsModalVisible, setCommentsModalVisible] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Загружаем события когда экран в фокусе
@@ -38,7 +42,8 @@ export default function FeedScreen() {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const data = await eventsAPI.getAll();
+      const token = await getToken();
+      const data = await eventsAPI.getAll(token || undefined);
       console.log('✅ События загружены:', data.length);
       
       // Преобразуем данные для совместимости
@@ -51,6 +56,7 @@ export default function FeedScreen() {
         maxParticipants: event.maxParticipants,
         likes: event.likes || 0,
         comments: event.comments || 0,
+        isLiked: event.isLiked || false,
         videoUrl: event.videoUrl,
         creator: {
           id: event.creator.id,
@@ -84,18 +90,54 @@ export default function FeedScreen() {
   };
 
   // Когда нажали "Лайк"
-  const handleLike = (eventId: string) => {
-    console.log('Лайк для события:', eventId);
-    // TODO: отправить на backend
+  const handleLike = async (eventId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Ошибка', 'Нужно войти в аккаунт');
+        return;
+      }
+
+      // Отправляем toggle запрос
+      const result = await likesAPI.toggle(token, eventId);
+      
+      // Обновляем событие в списке
+      setEvents(prevEvents => 
+        prevEvents.map(event => 
+          event.id === eventId 
+            ? { 
+                ...event, 
+                likes: result.likesCount,
+                isLiked: result.isLiked
+              }
+            : event
+        )
+      );
+
+      console.log(result.isLiked ? '❤️ Лайк добавлен' : '🤍 Лайк убран');
+    } catch (error) {
+      console.error('Ошибка лайка:', error);
+      Alert.alert('Ошибка', 'Не удалось поставить лайк');
+    }
   };
 
   // Когда нажали "Комментарии"
   const handleComment = (eventId: string) => {
-    Alert.alert(
-      'Комментарии',
-      'Скоро добавим экран комментариев!',
-      [{ text: 'ОК' }]
-    );
+    setSelectedEventId(eventId);
+    setCommentsModalVisible(true);
+  };
+
+  // Когда изменилось количество комментариев
+  const handleCommentCountChange = (count: number) => {
+    if (selectedEventId) {
+      setEvents(prevEvents =>
+        prevEvents.map(event =>
+          event.id === selectedEventId
+            ? { ...event, comments: count }
+            : event
+        )
+      );
+    }
   };
 
   // Когда нажали на профиль создателя
@@ -165,6 +207,16 @@ export default function FeedScreen() {
           itemVisiblePercentThreshold: 50,
         }}
       />
+
+      {/* Модальное окно комментариев */}
+      {selectedEventId && (
+        <CommentsModal
+          visible={commentsModalVisible}
+          eventId={selectedEventId}
+          onClose={() => setCommentsModalVisible(false)}
+          onCommentCountChange={handleCommentCountChange}
+        />
+      )}
     </View>
   );
 }

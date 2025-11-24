@@ -48,6 +48,8 @@ model User {
   // Связи
   events            Event[]            @relation("EventCreator")
   participations    EventParticipant[]
+  likes             Like[]
+  comments          Comment[]
 }
 
 // ═══════════════════════════════════════════════════════
@@ -86,6 +88,8 @@ model Event {
   // Связи
   creator           User               @relation("EventCreator", fields: [creatorId], references: [id])
   participants      EventParticipant[]
+  likes             Like[]
+  comments          Comment[]
 }
 
 // ═══════════════════════════════════════════════════════
@@ -119,4 +123,64 @@ model EventParticipant {
   
   // Уникальное ограничение: один пользователь - одно событие
   @@unique([eventId, userId])
+}
+
+// ═══════════════════════════════════════════════════════
+// LIKE - ЛАЙК СОБЫТИЯ
+// ═══════════════════════════════════════════════════════
+// Таблица для хранения лайков событий
+//
+// Поля:
+// - id: уникальный ID (UUID)
+// - eventId: ID события
+// - userId: ID пользователя который лайкнул
+// - createdAt: дата лайка
+//
+// Связи:
+// - event: событие (Event)
+// - user: пользователь (User)
+//
+// Ограничения:
+// - уникальная пара (eventId, userId) - один пользователь может лайкнуть событие только один раз
+// ═══════════════════════════════════════════════════════
+model Like {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+  
+  // Связи
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Уникальное ограничение: один пользователь - один лайк на событие
+  @@unique([eventId, userId])
+}
+
+// ═══════════════════════════════════════════════════════
+// COMMENT - КОММЕНТАРИЙ К СОБЫТИЮ
+// ═══════════════════════════════════════════════════════
+// Таблица для хранения комментариев к событиям
+//
+// Поля:
+// - id: уникальный ID (UUID)
+// - text: текст комментария
+// - eventId: ID события
+// - userId: ID пользователя который написал комментарий
+// - createdAt: дата создания комментария
+//
+// Связи:
+// - event: событие (Event)
+// - user: пользователь (User)
+// ═══════════════════════════════════════════════════════
+model Comment {
+  id        String   @id @default(uuid())
+  text      String
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+  
+  // Связи
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

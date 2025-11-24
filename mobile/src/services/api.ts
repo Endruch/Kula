@@ -63,8 +63,9 @@ export const eventsAPI = {
     return response.data;
   },
 
-  getAll: async () => {
-    const response = await apiClient.get('/events');
+  getAll: async (token?: string) => {
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await apiClient.get('/events', { headers });
     return response.data;
   },
 
@@ -88,6 +89,74 @@ export const eventsAPI = {
         Authorization: `Bearer ${token}`,
       },
     });
+    return response.data;
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// API ДЛЯ ЛАЙКОВ
+// ═══════════════════════════════════════════════════════
+export const likesAPI = {
+  // Лайкнуть/убрать лайк (toggle)
+  toggle: async (token: string, eventId: string) => {
+    const response = await apiClient.post(
+      `/likes/${eventId}`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return response.data;
+  },
+
+  // Проверить лайкнул ли пользователь
+  check: async (token: string, eventId: string) => {
+    const response = await apiClient.get(`/likes/${eventId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
+
+  // Получить количество лайков
+  getCount: async (eventId: string) => {
+    const response = await apiClient.get(`/likes/${eventId}/count`);
+    return response.data;
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// API ДЛЯ КОММЕНТАРИЕВ
+// ═══════════════════════════════════════════════════════
+export const commentsAPI = {
+  // Добавить комментарий
+  add: async (token: string, eventId: string, text: string) => {
+    const response = await apiClient.post(
+      `/comments/${eventId}`,
+      { text },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return response.data;
+  },
+
+  // Получить все комментарии события
+  getAll: async (eventId: string) => {
+    const response = await apiClient.get(`/comments/${eventId}`);
+    return response.data;
+  },
+
+  // Удалить комментарий
+  delete: async (token: string, commentId: string) => {
+    const response = await apiClient.delete(`/comments/${commentId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
+
+  // Получить количество комментариев
+  getCount: async (eventId: string) => {
+    const response = await apiClient.get(`/comments/${eventId}/count`);
     return response.data;
   },
 };

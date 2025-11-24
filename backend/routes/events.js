@@ -103,9 +103,17 @@ router.get('/my', authMiddleware, async (req, res) => {
         creatorId: req.userId,
       },
       include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
         _count: {
           select: {
             participants: true,
+            likes: true,
+            comments: true,
           },
         },
       },
@@ -117,11 +125,11 @@ router.get('/my', authMiddleware, async (req, res) => {
     const eventsWithCounts = events.map(event => ({
       ...event,
       participants: event._count.participants,
-      likes: 0,
-      comments: 0,
+      likes: event._count.likes,
+      comments: event._count.comments,
     }));
 
-    console.log('✅ События загружены:', eventsWithCounts.length);
+    console.log('✅ Мои события загружены:', eventsWithCounts.length);
     res.json(eventsWithCounts);
   } catch (error) {
     console.error('❌ Ошибка получения моих событий:', error);
@@ -132,6 +140,21 @@ router.get('/my', authMiddleware, async (req, res) => {
 // GET /api/events - Все события
 router.get('/', async (req, res) => {
   try {
+    console.log('📋 Загрузка всех событий');
+    
+    // Проверяем есть ли токен (опционально для публичного доступа)
+    let userId = null;
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        userId = decoded.userId;
+      } catch (error) {
+        // Игнорируем ошибку - просто не авторизован
+      }
+    }
+    
     const events = await prisma.event.findMany({
       include: {
         creator: {
@@ -140,9 +163,14 @@ router.get('/', async (req, res) => {
             username: true,
           },
         },
+        likes: userId ? {
+          where: { userId }
+        } : false,
         _count: {
           select: {
             participants: true,
+            likes: true,
+            comments: true,
           },
         },
       },
@@ -154,10 +182,12 @@ router.get('/', async (req, res) => {
     const eventsWithCounts = events.map(event => ({
       ...event,
       participants: event._count.participants,
-      likes: 0,
-      comments: 0,
+      likes: event._count.likes,
+      comments: event._count.comments,
+      isLiked: userId ? event.likes.length > 0 : false,
     }));
 
+    console.log('✅ События загружены:', eventsWithCounts.length);
     res.json(eventsWithCounts);
   } catch (error) {
     console.error('❌ Ошибка получения событий:', error);
@@ -169,7 +199,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
+    
     const event = await prisma.event.findUnique({
       where: { id },
       include: {
@@ -177,17 +207,13 @@ router.get('/:id', async (req, res) => {
           select: {
             id: true,
             username: true,
-            email: true,
           },
         },
-        participants: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-              },
-            },
+        _count: {
+          select: {
+            participants: true,
+            likes: true,
+            comments: true,
           },
         },
       },
@@ -197,7 +223,14 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Событие не найдено' });
     }
 
-    res.json(event);
+    const eventWithCounts = {
+      ...event,
+      participants: event._count.participants,
+      likes: event._count.likes,
+      comments: event._count.comments,
+    };
+
+    res.json(eventWithCounts);
   } catch (error) {
     console.error('❌ Ошибка получения события:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
