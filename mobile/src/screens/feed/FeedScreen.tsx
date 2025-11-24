@@ -22,6 +22,9 @@ import CommentsModal from '../../components/feed/CommentsModal';
 import { eventsAPI, likesAPI } from '../../services/api';
 import { getToken } from '../../services/auth';
 
+// логгер
+import { log } from "../../utils/logger";
+
 const { height } = Dimensions.get('window');
 
 export default function FeedScreen() {
