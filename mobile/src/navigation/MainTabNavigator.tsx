@@ -10,21 +10,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FeedScreen from '../screens/feed/FeedScreen';
+import MapScreen from '../screens/map/MapScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
-import { View, Text, StyleSheet } from 'react-native';
+import { Text } from 'react-native';
 
 const Tab = createBottomTabNavigator();
-
-// ВРЕМЕННЫЙ экран карты
-function MapScreen() {
-  return (
-    <View style={styles.centerContainer}>
-      <Text style={styles.placeholder}>🗺️</Text>
-      <Text style={styles.placeholderText}>Карта событий</Text>
-      <Text style={styles.placeholderSubtext}>Скоро добавим!</Text>
-    </View>
-  );
-}
 
 export default function MainTabNavigator() {
   return (
@@ -84,26 +74,3 @@ export default function MainTabNavigator() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  centerContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholder: {
-    fontSize: 80,
-    marginBottom: 20,
-  },
-  placeholderText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  placeholderSubtext: {
-    fontSize: 16,
-    color: '#666',
-  },
-});

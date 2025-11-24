@@ -36,23 +36,49 @@ router.post('/', authMiddleware, async (req, res) => {
       title,
       description,
       location,
+      latitude,
+      longitude,
       dateTime,
+      endDate,
       category,
       maxParticipants,
       videoUrl,
     } = req.body;
 
-    if (!title || !location || !dateTime || !category || !videoUrl) {
+    // Валидация обязательных полей
+    if (!title || !location || !dateTime || !endDate || !category || !videoUrl) {
       return res.status(400).json({ 
         error: 'Заполните все обязательные поля' 
       });
     }
 
-    let parsedDate;
+    // Валидация координат
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ 
+        error: 'Необходимо указать координаты события' 
+      });
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ 
+        error: 'Неверные координаты' 
+      });
+    }
+
+    // Парсим даты
+    let parsedStartDate, parsedEndDate;
     try {
-      parsedDate = new Date(dateTime);
-      if (isNaN(parsedDate.getTime())) {
+      parsedStartDate = new Date(dateTime);
+      parsedEndDate = new Date(endDate);
+      
+      if (isNaN(parsedStartDate.getTime()) || isNaN(parsedEndDate.getTime())) {
         throw new Error('Invalid date');
+      }
+
+      if (parsedEndDate <= parsedStartDate) {
+        return res.status(400).json({ 
+          error: 'Дата окончания должна быть после даты начала' 
+        });
       }
     } catch (err) {
       return res.status(400).json({ 
@@ -65,7 +91,10 @@ router.post('/', authMiddleware, async (req, res) => {
         title,
         description: description || '',
         location,
-        dateTime: parsedDate,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        dateTime: parsedStartDate,
+        endDate: parsedEndDate,
         category,
         maxParticipants: maxParticipants || 10,
         videoUrl,
@@ -82,7 +111,7 @@ router.post('/', authMiddleware, async (req, res) => {
       },
     });
 
-    console.log('✅ Событие создано:', event.id, '-', event.title);
+    console.log('✅ Событие создано:', event.id, '-', event.title, `(${latitude}, ${longitude})`);
     res.status(201).json(event);
   } catch (error) {
     console.error('❌ Ошибка создания события:', error);

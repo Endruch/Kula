@@ -1,8 +1,5 @@
 // ═══════════════════════════════════════════════════════
-// CREATE EVENT SCREEN - СОЗДАНИЕ СОБЫТИЯ С ПИКЕРАМИ
-// ═══════════════════════════════════════════════════════
-// Форма с Date/Time пикерами (прокрутка цифр!)
-// Валидация: минимум +24 часа, максимум +2 недели
+// CREATE EVENT SCREEN - СОЗДАНИЕ СОБЫТИЯ С АВТОДОПОЛНЕНИЕМ
 // ═══════════════════════════════════════════════════════
 
 import React, { useState } from 'react';
@@ -16,11 +13,13 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AddressAutocomplete from '../../components/create/AddressAutocomplete';
 import { getToken } from '../../services/auth';
 import { eventsAPI } from '../../services/api';
 
@@ -37,9 +36,12 @@ export default function CreateEventScreen() {
   const navigation = useNavigation();
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [category, setCategory] = useState('');
-  const [maxParticipants, setMaxParticipants] = useState('10');
+  const [maxParticipants, setMaxParticipants] = useState('4');
   const [videoUri, setVideoUri] = useState('');
+  const [hasEndDate, setHasEndDate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Date/Time picker states
@@ -49,8 +51,18 @@ export default function CreateEventScreen() {
     tomorrow.setHours(18, 0, 0, 0);
     return tomorrow;
   });
+  
+  const [endDate, setEndDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(20, 0, 0, 0); // +2 часа по умолчанию
+    return tomorrow;
+  });
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   // Форматирование для отображения
   const formatDate = (date: Date) => {
@@ -68,7 +80,15 @@ export default function CreateEventScreen() {
     });
   };
 
-  // Обработка изменения даты
+  // Обработка выбора адреса
+  const handleSelectAddress = (address: string, lat: number, lon: number) => {
+    setLocation(address);
+    setLatitude(lat);
+    setLongitude(lon);
+    console.log(`📍 Координаты сохранены: ${lat}, ${lon}`);
+  };
+
+  // Обработка изменения даты начала
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -76,10 +96,15 @@ export default function CreateEventScreen() {
       newDate.setHours(eventDate.getHours());
       newDate.setMinutes(eventDate.getMinutes());
       setEventDate(newDate);
+      
+      // Автоматически устанавливаем endDate на +2 часа
+      const newEndDate = new Date(newDate);
+      newEndDate.setHours(newDate.getHours() + 2);
+      setEndDate(newEndDate);
     }
   };
 
-  // Обработка изменения времени
+  // Обработка изменения времени начала
   const onTimeChange = (event: any, selectedTime?: Date) => {
     setShowTimePicker(false);
     if (selectedTime) {
@@ -87,6 +112,33 @@ export default function CreateEventScreen() {
       newDate.setHours(selectedTime.getHours());
       newDate.setMinutes(selectedTime.getMinutes());
       setEventDate(newDate);
+      
+      // Автоматически устанавливаем endDate на +2 часа
+      const newEndDate = new Date(newDate);
+      newEndDate.setHours(newDate.getHours() + 2);
+      setEndDate(newEndDate);
+    }
+  };
+
+  // Обработка изменения даты окончания
+  const onEndDateChange = (event: any, selectedDate?: Date) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      const newDate = new Date(selectedDate);
+      newDate.setHours(endDate.getHours());
+      newDate.setMinutes(endDate.getMinutes());
+      setEndDate(newDate);
+    }
+  };
+
+  // Обработка изменения времени окончания
+  const onEndTimeChange = (event: any, selectedTime?: Date) => {
+    setShowEndTimePicker(false);
+    if (selectedTime) {
+      const newDate = new Date(endDate);
+      newDate.setHours(selectedTime.getHours());
+      newDate.setMinutes(selectedTime.getMinutes());
+      setEndDate(newDate);
     }
   };
 
@@ -117,25 +169,6 @@ export default function CreateEventScreen() {
     }
   };
 
-  // Валидация даты
-  const validateEventDate = () => {
-    const now = new Date();
-    const minDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const maxDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-
-    if (eventDate < minDate) {
-      Alert.alert('Ошибка', 'Событие должно быть минимум через 24 часа!');
-      return false;
-    }
-
-    if (eventDate > maxDate) {
-      Alert.alert('Ошибка', 'Событие должно быть не позднее чем через 2 недели!');
-      return false;
-    }
-
-    return true;
-  };
-
   // Публикация события
   const handlePublish = async () => {
     if (!title.trim()) {
@@ -146,6 +179,10 @@ export default function CreateEventScreen() {
       Alert.alert('Ошибка', 'Введите место!');
       return;
     }
+    if (latitude === null || longitude === null) {
+      Alert.alert('Ошибка', 'Выберите адрес из списка для получения координат!');
+      return;
+    }
     if (!category) {
       Alert.alert('Ошибка', 'Выберите категорию!');
       return;
@@ -154,9 +191,38 @@ export default function CreateEventScreen() {
       Alert.alert('Ошибка', 'Добавьте видео рилс!');
       return;
     }
-
-    if (!validateEventDate()) {
+    
+    // Валидация количества участников
+    const participants = parseInt(maxParticipants);
+    if (isNaN(participants) || participants < 4) {
+      Alert.alert('Минимальное количество участников', 'Минимум 4 человека для предотвращения романтических встреч 1-на-1 😊');
       return;
+    }
+    if (participants > 20) {
+      Alert.alert('Максимальное количество участников 20', 'Мы хотим создать уютную атмосферу для знакомств, поэтому ограничиваем количество до 20 человек 🎉');
+      return;
+    }
+
+    // Валидация даты только если включён переключатель
+    if (hasEndDate) {
+      const now = new Date();
+      const minDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const maxDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      if (eventDate < minDate) {
+        Alert.alert('Ошибка', 'Событие должно быть минимум через 24 часа!');
+        return;
+      }
+
+      if (eventDate > maxDate) {
+        Alert.alert('Ошибка', 'Событие должно быть не позднее чем через 2 недели!');
+        return;
+      }
+
+      if (endDate <= eventDate) {
+        Alert.alert('Ошибка', 'Время окончания должно быть позже времени начала!');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -170,7 +236,15 @@ export default function CreateEventScreen() {
       }
 
       const dateTimeString = eventDate.toISOString();
-      console.log('✅ Дата события:', dateTimeString);
+      
+      // Автоматический расчёт endDate если переключатель выключен
+      const endDateString = hasEndDate 
+        ? endDate.toISOString() 
+        : new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(); // +2 часа
+      
+      console.log('✅ Дата начала:', dateTimeString);
+      console.log('✅ Дата окончания:', endDateString);
+      console.log('✅ Координаты:', latitude, longitude);
 
       // ВРЕМЕННО: тестовое видео
       const videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
@@ -179,9 +253,12 @@ export default function CreateEventScreen() {
         title: title.trim(),
         description: '',
         location: location.trim(),
+        latitude,
+        longitude,
         dateTime: dateTimeString,
+        endDate: endDateString,
         category: category,
-        maxParticipants: parseInt(maxParticipants) || 10,
+        maxParticipants: participants,
         videoUrl: videoUrl,
       });
 
@@ -214,7 +291,10 @@ export default function CreateEventScreen() {
         <View style={{ width: 30 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Видео */}
         <TouchableOpacity
           style={styles.videoButton}
@@ -258,23 +338,27 @@ export default function CreateEventScreen() {
           />
         </View>
 
-        {/* Место */}
+        {/* Место с автодополнением */}
         <View style={styles.field}>
-          <Text style={styles.label}>Место *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Адрес или название места"
-            placeholderTextColor="#666"
+          <Text style={styles.label}>Место * {latitude && longitude && '📍'}</Text>
+          <AddressAutocomplete
             value={location}
             onChangeText={setLocation}
+            onSelectAddress={handleSelectAddress}
+            placeholder="Начните вводить адрес..."
             editable={!isLoading}
           />
+          {latitude && longitude && (
+            <Text style={styles.coordsHint}>
+              ✅ Координаты: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+            </Text>
+          )}
         </View>
 
-        {/* Дата и время с ПИКЕРАМИ */}
+        {/* Дата и время НАЧАЛА */}
         <View style={styles.row}>
           <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
-            <Text style={styles.label}>Дата *</Text>
+            <Text style={styles.label}>Дата начала *</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowDatePicker(true)}
@@ -286,7 +370,7 @@ export default function CreateEventScreen() {
           </View>
 
           <View style={[styles.field, { flex: 1, marginLeft: 8 }]}>
-            <Text style={styles.label}>Время *</Text>
+            <Text style={styles.label}>Время начала *</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowTimePicker(true)}
@@ -298,7 +382,48 @@ export default function CreateEventScreen() {
           </View>
         </View>
 
-        {/* Date Picker - ПРОКРУТКА! */}
+        {/* Переключатель даты окончания */}
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchLabel}>Указать время окончания</Text>
+          <Switch
+            value={hasEndDate}
+            onValueChange={setHasEndDate}
+            trackColor={{ false: '#3d3d54', true: '#00D4AA' }}
+            thumbColor={hasEndDate ? '#fff' : '#f4f3f4'}
+            disabled={isLoading}
+          />
+        </View>
+
+        {/* Дата и время ОКОНЧАНИЯ (только если включён переключатель) */}
+        {hasEndDate && (
+          <View style={styles.row}>
+            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.label}>Дата окончания *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowEndDatePicker(true)}
+                disabled={isLoading}
+              >
+                <Text style={styles.pickerText}>{formatDate(endDate)}</Text>
+                <Text style={styles.pickerIcon}>📅</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.field, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.label}>Время окончания *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowEndTimePicker(true)}
+                disabled={isLoading}
+              >
+                <Text style={styles.pickerText}>{formatTime(endDate)}</Text>
+                <Text style={styles.pickerIcon}>🕐</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Date/Time Pickers */}
         {showDatePicker && (
           <DateTimePicker
             value={eventDate}
@@ -310,7 +435,6 @@ export default function CreateEventScreen() {
           />
         )}
 
-        {/* Time Picker - ПРОКРУТКА! */}
         {showTimePicker && (
           <DateTimePicker
             value={eventDate}
@@ -320,14 +444,34 @@ export default function CreateEventScreen() {
           />
         )}
 
+        {showEndDatePicker && (
+          <DateTimePicker
+            value={endDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onEndDateChange}
+            minimumDate={eventDate}
+            maximumDate={maxDate}
+          />
+        )}
+
+        {showEndTimePicker && (
+          <DateTimePicker
+            value={endDate}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onEndTimeChange}
+          />
+        )}
+
         <Text style={styles.hint}>💡 Событие от 24 часов до 2 недель</Text>
 
         {/* Макс участников */}
         <View style={styles.field}>
-          <Text style={styles.label}>Максимум участников</Text>
+          <Text style={styles.label}>Количество участников *</Text>
           <TextInput
             style={styles.input}
-            placeholder="10"
+            placeholder="Минимум 4 человека"
             placeholderTextColor="#666"
             value={maxParticipants}
             onChangeText={setMaxParticipants}
@@ -335,6 +479,10 @@ export default function CreateEventScreen() {
             editable={!isLoading}
           />
         </View>
+
+        <Text style={styles.participantsHint}>
+          💡 Минимум 4 человека, максимум 20
+        </Text>
 
         {/* Категория */}
         <View style={styles.field}>
@@ -464,6 +612,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  coordsHint: {
+    fontSize: 12,
+    color: '#00D4AA',
+    marginTop: 8,
+  },
   row: {
     flexDirection: 'row',
   },
@@ -488,6 +641,12 @@ const styles = StyleSheet.create({
     color: '#00D4AA',
     marginBottom: 20,
     marginTop: -10,
+  },
+  participantsHint: {
+    fontSize: 12,
+    color: '#00D4AA',
+    marginTop: -12,
+    marginBottom: 20,
   },
   categories: {
     flexDirection: 'row',
@@ -534,5 +693,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#2d2d44',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
   },
 });

@@ -5,7 +5,7 @@
 // Автообновляется при переходе на вкладку
 // ═══════════════════════════════════════════════════════
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   FlatList, 
@@ -15,19 +15,17 @@ import {
   ActivityIndicator,
   Text
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import EventVideo from '../../components/feed/EventVideo';
 import EventCard from '../../components/feed/EventCard';
 import CommentsModal from '../../components/feed/CommentsModal';
 import { eventsAPI, likesAPI } from '../../services/api';
 import { getToken } from '../../services/auth';
 
-// логгер
-import { log } from "../../utils/logger";
-
 const { height } = Dimensions.get('window');
 
-export default function FeedScreen() {
+export default function FeedScreen({ route }: any) {
+  const navigation = useNavigation<any>();
   const [activeIndex, setActiveIndex] = useState(0);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,8 +37,32 @@ export default function FeedScreen() {
   useFocusEffect(
     React.useCallback(() => {
       loadEvents();
+      
+      // Останавливаем видео при уходе с экрана
+      return () => {
+        setActiveIndex(-1);
+      };
     }, [])
   );
+
+  // Обрабатываем возврат с карты
+  useEffect(() => {
+    if (route?.params?.scrollToIndex !== undefined) {
+      const index = route.params.scrollToIndex;
+      
+      // Скроллим к нужному видео
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: false,
+        });
+        setActiveIndex(index);
+      }, 100);
+      
+      // Очищаем параметр
+      navigation.setParams({ scrollToIndex: undefined });
+    }
+  }, [route?.params?.scrollToIndex]);
 
   const loadEvents = async () => {
     try {
@@ -152,6 +174,17 @@ export default function FeedScreen() {
     );
   };
 
+  // Когда нажали на карту
+  const handleMapPress = (eventId: string) => {
+    // Останавливаем текущее видео
+    setActiveIndex(-1);
+    
+    navigation.navigate('MapTab', { 
+      eventId,
+      fromFeedIndex: activeIndex
+    });
+  };
+
   // Рендерим каждое событие
   const renderItem = ({ item, index }: any) => (
     <View style={styles.itemContainer}>
@@ -168,6 +201,7 @@ export default function FeedScreen() {
         onLike={() => handleLike(item.id)}
         onComment={() => handleComment(item.id)}
         onProfilePress={() => handleProfilePress(item.creator.id)}
+        onMapPress={() => handleMapPress(item.id)}
       />
     </View>
   );

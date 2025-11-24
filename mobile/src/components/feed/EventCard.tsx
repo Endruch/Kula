@@ -2,12 +2,12 @@
 // EVENT CARD - КАРТОЧКА СОБЫТИЯ (ОБНОВЛЁННАЯ)
 // ═══════════════════════════════════════════════════════
 // Добавлено:
-// - Боковая панель с кнопками (лайк, комменты, профиль)
+// - Боковая панель с кнопками (лайк, комменты, профиль, карта)
 // - Счётчики лайков и комментариев
-// - Навигация в профиль
+// - Навигация в профиль и на карту
 // ═══════════════════════════════════════════════════════
 
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface Event {
@@ -32,6 +32,7 @@ interface EventCardProps {
   onLike: () => void;
   onComment: () => void;
   onProfilePress: () => void;
+  onMapPress: () => void;
 }
 
 export default function EventCard({ 
@@ -39,12 +40,9 @@ export default function EventCard({
   onParticipate, 
   onLike,
   onComment,
-  onProfilePress 
+  onProfilePress,
+  onMapPress,
 }: EventCardProps) {
-const handleLike = () => {
-  onLike();
-};
-
   return (
     <View style={styles.container}>
       {/* Боковая панель справа */}
@@ -65,12 +63,12 @@ const handleLike = () => {
         {/* Лайк */}
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={handleLike}
+          onPress={onLike}
           activeOpacity={0.7}
         >
-        <Text style={styles.actionIcon}>
-          {event.isLiked ? '❤️' : '🤍'}
-        </Text>
+          <Text style={styles.actionIcon}>
+            {event.isLiked ? '❤️' : '🤍'}
+          </Text>
           <Text style={styles.actionCount}>{event.likes}</Text>
         </TouchableOpacity>
 
@@ -87,6 +85,7 @@ const handleLike = () => {
         {/* Карта (переход к месту события) */}
         <TouchableOpacity 
           style={styles.actionButton}
+          onPress={onMapPress}
           activeOpacity={0.7}
         >
           <Text style={styles.actionIcon}>🗺️</Text>

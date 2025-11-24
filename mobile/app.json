@@ -15,7 +15,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kula.app",
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Kula использует вашу геолокацию для отображения событий рядом с вами на карте.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Kula использует вашу геолокацию для отображения событий рядом с вами на карте."
+      }
     },
     "android": {
       "icon": "./assets/icon.png",
@@ -33,7 +37,11 @@
         "xxhdpi": "./assets/splash.png",
         "xxxhdpi": "./assets/splash.png"
       },
-      "package": "com.kula.app"
+      "package": "com.kula.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,6 +54,12 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Kula использует вашу геолокацию для отображения событий рядом с вами на карте."
         }
       ]
     ]

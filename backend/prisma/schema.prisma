@@ -60,7 +60,10 @@ model User {
 // - title: название события
 // - description: описание (опционально)
 // - location: место проведения (адрес)
-// - dateTime: дата и время события
+// - latitude: широта (для карты)
+// - longitude: долгота (для карты)
+// - dateTime: дата и время начала события
+// - endDate: дата и время окончания события
 // - category: категория (sport, party, cafe, etc)
 // - maxParticipants: максимум участников
 // - videoUrl: ссылка на видео рилс
@@ -77,7 +80,10 @@ model Event {
   title             String
   description       String?
   location          String
+  latitude          Float
+  longitude         Float
   dateTime          DateTime
+  endDate           DateTime
   category          String
   maxParticipants   Int                @default(10)
   videoUrl          String
