@@ -35,8 +35,10 @@ This repository is **confidential and proprietary**. Individuals granted access 
 ### Contact
 
 For licensing and usage inquiries:
-- Email: your@email.com
-- GitHub: @yourusername
+
+- **Author:** Andrii Chudnovskyi
+- **GitHub:** [@Endruch](https://github.com/Endruch)
+- **Email:** chudnovckiy@gmail.com
 
 ---
 
