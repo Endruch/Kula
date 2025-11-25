@@ -11,9 +11,10 @@
 // App
 //  ├─ AnimatedSplash (показывается первым)
 //  └─ После анимации:
-//     └─ AuthProvider
-//        └─ NavigationContainer
-//           └─ RootNavigator
+//     └─ GestureHandlerRootView (для свайпов)
+//        └─ AuthProvider
+//           └─ NavigationContainer
+//              └─ RootNavigator
 //
 // Простыми словами:
 // - Открыл приложение → видишь Lottie анимацию
@@ -22,6 +23,7 @@
 
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AnimatedSplash from './src/components/AnimatedSplash';
@@ -36,10 +38,12 @@ export default function App() {
 
   // После анимации - основное приложение
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

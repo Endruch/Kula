@@ -84,11 +84,8 @@ export default function MapScreen({ route }: any) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert(
-          'Геолокация отключена',
-          'Разрешите доступ к геолокации для отображения событий рядом с вами'
-        );
-        return;
+        console.log('⚠️ Геолокация отключена, используем Нью-Йорк');
+        return; // Не показываем алерт, просто используем fallback
       }
 
       const location = await Location.getCurrentPositionAsync({
@@ -103,7 +100,7 @@ export default function MapScreen({ route }: any) {
       console.log('📍 Геолокация получена:', location.coords.latitude, location.coords.longitude);
     } catch (error) {
       console.error('Ошибка получения геолокации:', error);
-      Alert.alert('Ошибка', 'Не удалось получить вашу геолокацию');
+      console.log('⚠️ Используем Нью-Йорк как fallback');
     }
   };
 
@@ -198,7 +195,7 @@ export default function MapScreen({ route }: any) {
     });
   };
 
-  // Начальный регион - геолокация пользователя
+  // Начальный регион - геолокация пользователя или Нью-Йорк
   const initialRegion = userLocation
     ? {
         latitude: userLocation.latitude,
@@ -207,10 +204,10 @@ export default function MapScreen({ route }: any) {
         longitudeDelta: 0.1,
       }
     : {
-        latitude: 40.7128,
+        latitude: 40.7128, // Нью-Йорк
         longitude: -74.0060,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
+        latitudeDelta: 0.5, // Шире зум для fallback
+        longitudeDelta: 0.5,
       };
 
   if (loading) {

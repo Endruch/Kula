@@ -3,6 +3,9 @@
 // ═══════════════════════════════════════════════════════
 // Загружает события из backend и показывает как рилсы
 // Автообновляется при переходе на вкладку
+// Сортировка по расстоянию + рандомизация
+// Скрытие UI по тапу + двойной тап для лайка
+// Скрытие нижних табов в чистом режиме
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -13,9 +16,12 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Text
+  Text,
+  TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import EventVideo from '../../components/feed/EventVideo';
 import EventCard from '../../components/feed/EventCard';
 import CommentsModal from '../../components/feed/CommentsModal';
@@ -24,6 +30,71 @@ import { getToken } from '../../services/auth';
 
 const { height } = Dimensions.get('window');
 
+// ═══════════════════════════════════════════════════════
+// ФУНКЦИИ РАСЧЁТА РАССТОЯНИЯ И СОРТИРОВКИ
+// ═══════════════════════════════════════════════════════
+
+// Функция расчёта расстояния между двумя точками (формула Haversine)
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371; // Радиус Земли в км
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Расстояние в км
+};
+
+// Функция рандомизации с приоритетом по расстоянию
+const shuffleEventsByDistance = (
+  events: any[],
+  userLat: number | null,
+  userLon: number | null,
+  radiusKm: number = 5 // Радиус приоритета (5 км)
+) => {
+  if (!userLat || !userLon) {
+    console.log('🎲 Геолокации нет - полностью случайный порядок');
+    return events.sort(() => Math.random() - 0.5);
+  }
+
+  const nearEvents: any[] = [];
+  const farEvents: any[] = [];
+
+  events.forEach(event => {
+    if (event.latitude && event.longitude) {
+      const distance = calculateDistance(userLat, userLon, event.latitude, event.longitude);
+      if (distance <= radiusKm) {
+        nearEvents.push({ ...event, distance });
+      } else {
+        farEvents.push({ ...event, distance });
+      }
+    } else {
+      farEvents.push(event);
+    }
+  });
+
+  const shuffledNear = nearEvents.sort(() => Math.random() - 0.5);
+  const shuffledFar = farEvents.sort(() => Math.random() - 0.5);
+
+  console.log(`🎲 Близких событий (≤${radiusKm}км): ${nearEvents.length}`);
+  console.log(`🎲 Дальних событий (>${radiusKm}км): ${farEvents.length}`);
+
+  return [...shuffledNear, ...shuffledFar];
+};
+
+// ═══════════════════════════════════════════════════════
+// ОСНОВНОЙ КОМПОНЕНТ
+// ═══════════════════════════════════════════════════════
+
 export default function FeedScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -31,18 +102,74 @@ export default function FeedScreen({ route }: any) {
   const [loading, setLoading] = useState(true);
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [isUIVisible, setIsUIVisible] = useState(true);
+  const [showLikeHeart, setShowLikeHeart] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  
   const flatListRef = useRef<FlatList>(null);
+  const uiOpacity = useRef(new Animated.Value(1)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const heartScale = useRef(new Animated.Value(0)).current;
+  const lastTap = useRef<number>(0);
+
+  // Получаем геолокацию пользователя
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          console.log('📍 Геолокация пользователя получена:', location.coords.latitude, location.coords.longitude);
+        } else {
+          console.log('⚠️ Геолокация не разрешена');
+        }
+      } catch (error) {
+        console.error('Ошибка получения геолокации:', error);
+      }
+    };
+
+    getUserLocation();
+  }, []);
+
+  // Скрываем/показываем табы в зависимости от UI
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: isUIVisible
+        ? {
+            backgroundColor: '#1a1a2e',
+            borderTopColor: '#2d2d44',
+            height: 60,
+            paddingBottom: 8,
+            paddingTop: 8,
+          }
+        : { display: 'none' }, // Скрываем табы
+    });
+  }, [isUIVisible, navigation]);
 
   // Загружаем события когда экран в фокусе
   useFocusEffect(
     React.useCallback(() => {
       loadEvents();
       
+      // ПОКАЗЫВАЕМ UI при возврате на экран
+      console.log('🔄 Возврат на экран рилсов - показываем UI');
+      setIsUIVisible(true);
+      uiOpacity.setValue(1);
+      
       // Останавливаем видео при уходе с экрана
       return () => {
         setActiveIndex(-1);
       };
-    }, [])
+    }, [userLocation])
   );
 
   // Обрабатываем возврат с карты
@@ -50,7 +177,6 @@ export default function FeedScreen({ route }: any) {
     if (route?.params?.scrollToIndex !== undefined) {
       const index = route.params.scrollToIndex;
       
-      // Скроллим к нужному видео
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
           index,
@@ -59,7 +185,6 @@ export default function FeedScreen({ route }: any) {
         setActiveIndex(index);
       }, 100);
       
-      // Очищаем параметр
       navigation.setParams({ scrollToIndex: undefined });
     }
   }, [route?.params?.scrollToIndex]);
@@ -71,11 +196,12 @@ export default function FeedScreen({ route }: any) {
       const data = await eventsAPI.getAll(token || undefined);
       console.log('✅ События загружены:', data.length);
       
-      // Преобразуем данные для совместимости
       const formattedEvents = data.map((event: any) => ({
         id: event.id,
         title: event.title,
         location: event.location,
+        latitude: event.latitude,
+        longitude: event.longitude,
         dateTime: event.dateTime,
         participants: event.participants || 0,
         maxParticipants: event.maxParticipants,
@@ -89,7 +215,15 @@ export default function FeedScreen({ route }: any) {
         },
       }));
 
-      setEvents(formattedEvents);
+      const sortedEvents = shuffleEventsByDistance(
+        formattedEvents,
+        userLocation?.latitude || null,
+        userLocation?.longitude || null,
+        5
+      );
+
+      console.log('🎲 События отсортированы по расстоянию и перемешаны');
+      setEvents(sortedEvents);
     } catch (error) {
       console.error('Ошибка загрузки событий:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить события');
@@ -98,7 +232,7 @@ export default function FeedScreen({ route }: any) {
     }
   };
 
-  // Когда пользователь свайпнул
+  // Когда пользователь свайпнул (НЕ меняем UI!)
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       setActiveIndex(viewableItems[0].index || 0);
@@ -123,10 +257,8 @@ export default function FeedScreen({ route }: any) {
         return;
       }
 
-      // Отправляем toggle запрос
       const result = await likesAPI.toggle(token, eventId);
       
-      // Обновляем событие в списке
       setEvents(prevEvents => 
         prevEvents.map(event => 
           event.id === eventId 
@@ -144,6 +276,44 @@ export default function FeedScreen({ route }: any) {
       console.error('Ошибка лайка:', error);
       Alert.alert('Ошибка', 'Не удалось поставить лайк');
     }
+  };
+
+  // Анимация сердечка при двойном тапе
+  const showHeartAnimation = () => {
+    setShowLikeHeart(true);
+    
+    // Анимация появления
+    Animated.parallel([
+      Animated.timing(heartOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(heartScale, {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Анимация исчезновения
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(heartOpacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heartScale, {
+          toValue: 1.5,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowLikeHeart(false);
+        heartScale.setValue(0);
+      });
+    }, 300);
   };
 
   // Когда нажали "Комментарии"
@@ -165,45 +335,120 @@ export default function FeedScreen({ route }: any) {
     }
   };
 
-  // Когда нажали на профиль создателя
-  const handleProfilePress = (creatorId: string) => {
-    Alert.alert(
-      'Профиль',
-      `Скоро откроется профиль пользователя ${creatorId}`,
-      [{ text: 'ОК' }]
-    );
-  };
-
   // Когда нажали на карту
   const handleMapPress = (eventId: string) => {
-    // Останавливаем текущее видео
     setActiveIndex(-1);
     
-    navigation.navigate('MapTab', { 
+    navigation.navigate('EventDetail', { 
       eventId,
       fromFeedIndex: activeIndex
     });
   };
 
+// Переключение видимости UI + двойной тап
+const handleTap = () => {
+  const now = Date.now();
+  const DOUBLE_PRESS_DELAY = 300;
+
+  if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
+    // Двойной тап - лайк (только если ещё не лайкнуто!)
+    const currentEvent = events[activeIndex];
+    if (currentEvent && !currentEvent.isLiked) {
+      console.log('❤️ Двойной тап - ставим лайк!');
+      handleLike(currentEvent.id);
+      showHeartAnimation();
+    } else if (currentEvent && currentEvent.isLiked) {
+      console.log('❤️ Лайк уже стоит - ничего не делаем');
+    }
+    
+    // Сбрасываем lastTap чтобы не считалось как одинарный тап
+    lastTap.current = 0;
+    return; // ← ВАЖНО! Выходим и НЕ меняем UI
+  }
+
+  // Запускаем таймер для одинарного тапа
+  setTimeout(() => {
+    if (now === lastTap.current) {
+      // Одинарный тап - переключение UI
+      const toValue = isUIVisible ? 0 : 1;
+      
+      Animated.timing(uiOpacity, {
+        toValue,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+      
+      setIsUIVisible(!isUIVisible);
+      console.log(isUIVisible ? '👁️ Скрываем UI' : '👁️ Показываем UI');
+    }
+  }, DOUBLE_PRESS_DELAY);
+
+  lastTap.current = now;
+};
+
+  // Обработчик для scrollToIndex
+  const getItemLayout = (_data: any, index: number) => ({
+    length: height,
+    offset: height * index,
+    index,
+  });
+
+  const onScrollToIndexFailed = (info: any) => {
+    console.warn('Scroll to index failed:', info);
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: false,
+      });
+    }, 100);
+  };
+
   // Рендерим каждое событие
   const renderItem = ({ item, index }: any) => (
-    <View style={styles.itemContainer}>
-      {/* Видео на фоне */}
-      <EventVideo 
-        videoUrl={item.videoUrl} 
-        isActive={index === activeIndex}
-      />
-      
-      {/* Информация поверх видео */}
-      <EventCard 
-        event={item}
-        onParticipate={() => handleParticipate(item.id)}
-        onLike={() => handleLike(item.id)}
-        onComment={() => handleComment(item.id)}
-        onProfilePress={() => handleProfilePress(item.creator.id)}
-        onMapPress={() => handleMapPress(item.id)}
-      />
-    </View>
+    <TouchableWithoutFeedback onPress={handleTap}>
+      <View style={styles.itemContainer}>
+        {/* Видео на фоне */}
+        <EventVideo 
+          videoUrl={item.videoUrl} 
+          isActive={index === activeIndex}
+        />
+        
+        {/* Сердечко для лайка (по центру) */}
+        {showLikeHeart && index === activeIndex && (
+          <Animated.View
+            style={[
+              styles.likeHeartContainer,
+              {
+                opacity: heartOpacity,
+                transform: [{ scale: heartScale }],
+              },
+            ]}
+          >
+            <Text style={styles.likeHeart}>❤️</Text>
+          </Animated.View>
+        )}
+        
+        {/* Информация поверх видео - с анимацией */}
+        <Animated.View 
+          style={{ 
+            opacity: uiOpacity,
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+          }}
+          pointerEvents={isUIVisible ? 'auto' : 'none'}
+        >
+          <EventCard 
+            event={item}
+            onParticipate={() => handleParticipate(item.id)}
+            onLike={() => handleLike(item.id)}
+            onComment={() => handleComment(item.id)}
+            onMapPress={() => handleMapPress(item.id)}
+          />
+        </Animated.View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 
   // Пока загружаются события
@@ -243,6 +488,8 @@ export default function FeedScreen({ route }: any) {
         viewabilityConfig={{
           itemVisiblePercentThreshold: 50,
         }}
+        getItemLayout={getItemLayout}
+        onScrollToIndexFailed={onScrollToIndexFailed}
       />
 
       {/* Модальное окно комментариев */}
@@ -266,6 +513,17 @@ const styles = StyleSheet.create({
   itemContainer: {
     height: height,
     width: '100%',
+  },
+  likeHeartContainer: {
+    position: 'absolute',
+    top: '45%',
+    left: '50%',
+    marginLeft: -75,
+    marginTop: -75,
+    zIndex: 100,
+  },
+  likeHeart: {
+    fontSize: 150,
   },
   loadingContainer: {
     flex: 1,

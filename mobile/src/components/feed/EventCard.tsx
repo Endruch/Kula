@@ -2,9 +2,9 @@
 // EVENT CARD - КАРТОЧКА СОБЫТИЯ (ОБНОВЛЁННАЯ)
 // ═══════════════════════════════════════════════════════
 // Добавлено:
-// - Боковая панель с кнопками (лайк, комменты, профиль, карта)
+// - Боковая панель с кнопками (лайк, комменты, карта)
 // - Счётчики лайков и комментариев
-// - Навигация в профиль и на карту
+// - Убран аватар создателя
 // ═══════════════════════════════════════════════════════
 
 import React from 'react';
@@ -31,7 +31,6 @@ interface EventCardProps {
   onParticipate: () => void;
   onLike: () => void;
   onComment: () => void;
-  onProfilePress: () => void;
   onMapPress: () => void;
 }
 
@@ -40,26 +39,12 @@ export default function EventCard({
   onParticipate, 
   onLike,
   onComment,
-  onProfilePress,
   onMapPress,
 }: EventCardProps) {
   return (
     <View style={styles.container}>
       {/* Боковая панель справа */}
       <View style={styles.sidePanel}>
-        {/* Аватар создателя */}
-        <TouchableOpacity 
-          style={styles.avatarButton}
-          onPress={onProfilePress}
-          activeOpacity={0.7}
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {event.creator.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
         {/* Лайк */}
         <TouchableOpacity 
           style={styles.actionButton}
@@ -95,9 +80,7 @@ export default function EventCard({
       {/* Информация о событии */}
       <View style={styles.infoContainer}>
         {/* Создатель */}
-        <TouchableOpacity onPress={onProfilePress}>
-          <Text style={styles.creator}>@{event.creator.name}</Text>
-        </TouchableOpacity>
+        <Text style={styles.creator}>@{event.creator.name}</Text>
         
         {/* Название */}
         <Text style={styles.title}>{event.title}</Text>
@@ -157,24 +140,6 @@ const styles = StyleSheet.create({
     right: 20,
     bottom: 180,
     alignItems: 'center',
-  },
-  avatarButton: {
-    marginBottom: 20,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#00D4AA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   actionButton: {
     alignItems: 'center',
