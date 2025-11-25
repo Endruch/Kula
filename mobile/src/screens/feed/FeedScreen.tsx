@@ -189,11 +189,11 @@ export default function FeedScreen({ route }: any) {
     }
   }, [route?.params?.scrollToIndex]);
 
-  const loadEvents = async () => {
-    try {
-      setLoading(true);
-      const token = await getToken();
-      const data = await eventsAPI.getAll(token || undefined);
+const loadEvents = async () => {
+  try {
+    setLoading(true);
+    // ✅ Токен автоматически через interceptor
+    const data = await eventsAPI.getAll();
       console.log('✅ События загружены:', data.length);
       
       const formattedEvents = data.map((event: any) => ({
@@ -239,25 +239,13 @@ export default function FeedScreen({ route }: any) {
     }
   }).current;
 
-  // Когда нажали "Участвовать"
-  const handleParticipate = (eventId: string) => {
-    Alert.alert(
-      'Участие подтверждено! 🎉',
-      'Скоро добавим запись в backend',
-      [{ text: 'ОК' }]
-    );
-  };
+
 
   // Когда нажали "Лайк"
-  const handleLike = async (eventId: string) => {
-    try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('Ошибка', 'Нужно войти в аккаунт');
-        return;
-      }
-
-      const result = await likesAPI.toggle(token, eventId);
+const handleLike = async (eventId: string) => {
+  try {
+    // ✅ Токен автоматически через interceptor
+    const result = await likesAPI.toggle(eventId);
       
       setEvents(prevEvents => 
         prevEvents.map(event => 
@@ -440,12 +428,11 @@ const handleTap = () => {
           pointerEvents={isUIVisible ? 'auto' : 'none'}
         >
           <EventCard 
-            event={item}
-            onParticipate={() => handleParticipate(item.id)}
-            onLike={() => handleLike(item.id)}
-            onComment={() => handleComment(item.id)}
-            onMapPress={() => handleMapPress(item.id)}
-          />
+  event={item}
+  onLike={() => handleLike(item.id)}
+  onComment={() => handleComment(item.id)}
+  onMapPress={() => handleMapPress(item.id)}
+/>
         </Animated.View>
       </View>
     </TouchableWithoutFeedback>

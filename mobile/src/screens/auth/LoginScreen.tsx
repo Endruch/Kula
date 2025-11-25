@@ -33,8 +33,8 @@ export default function LoginScreen({ navigation }: any) {
       const response = await authAPI.login(email, password);
       console.log('Login success:', response);
 
-      // Используем функцию login из контекста
-      await login(response.token, response.user);
+      // ✅ ОБНОВЛЕНО: Теперь используем accessToken и refreshToken
+      await login(response.accessToken, response.refreshToken, response.user);
       
       // Навигация произойдёт автоматически!
     } catch (error: any) {

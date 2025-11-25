@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
-import { getToken } from '../../services/auth';
+
 
 export default function ProfileScreen() {
   const { userData, logout } = useAuth();
@@ -34,21 +34,20 @@ export default function ProfileScreen() {
     }, [])
   );
 
-  const loadMyEvents = async () => {
-    try {
-      setLoading(true);
-      const token = await getToken();
-      if (!token) return;
-
-      const events = await eventsAPI.getMy(token);
-      console.log('✅ Мои события загружены:', events.length);
-      setMyEvents(events);
-    } catch (error) {
-      console.error('Ошибка загрузки событий:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+const loadMyEvents = async () => {
+  try {
+    setLoading(true);
+    
+    // ✅ Токен автоматически через interceptor
+    const events = await eventsAPI.getMy();
+    console.log('✅ Мои события загружены:', events.length);
+    setMyEvents(events);
+  } catch (error) {
+    console.error('Ошибка загрузки событий:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleCreateEvent = () => {
     navigation.navigate('CreateEvent' as never);
@@ -60,22 +59,20 @@ export default function ProfileScreen() {
       `Вы уверены, что хотите удалить "${eventTitle}"?`,
       [
         { text: 'Отмена', style: 'cancel' },
-        { 
-          text: 'Удалить', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const token = await getToken();
-              if (!token) return;
-
-              await eventsAPI.delete(token, eventId);
-              Alert.alert('Успех', 'Событие удалено');
-              loadMyEvents(); // Перезагружаем список
-            } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось удалить событие');
-            }
-          }
-        },
+        {
+  text: 'Удалить', 
+  style: 'destructive',
+  onPress: async () => {
+    try {
+      // ✅ Токен автоматически через interceptor
+      await eventsAPI.delete(eventId);
+      Alert.alert('Успех', 'Событие удалено');
+      loadMyEvents();
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось удалить событие');
+    }
+  }
+},
       ]
     );
   };

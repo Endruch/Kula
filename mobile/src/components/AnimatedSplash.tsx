@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Text, Animated, Image } from 'react-native';
+import { View, StyleSheet, Animated, Image } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Держим встроенный splash
@@ -22,10 +22,10 @@ interface AnimatedSplashProps {
 
 export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     // Даём время Expo splash скрыться
     const prepare = async () => {
       try {
@@ -42,8 +42,8 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
           }),
           Animated.spring(scaleAnim, {
             toValue: 1,
-            friction: 6,
-            tension: 40,
+            friction: 5,
+            tension: 50,
             useNativeDriver: true,
           }),
         ]).start();
@@ -51,7 +51,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
         // Закрываем нашу анимацию через 2.5 секунды
         setTimeout(() => {
           onFinish();
-        }, 2500);
+        }, 1300);
       } catch (e) {
         console.warn('Splash error:', e);
         setIsReady(true);
@@ -74,16 +74,11 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
           alignItems: 'center',
         }}
       >
-        {/* Твой логотип */}
         <Image
           source={require('../../assets/icon.png')}
           style={styles.logo}
           resizeMode="contain"
         />
-        
-        {/* Текст */}
-        <Text style={styles.text}>KULA</Text>
-        <Text style={styles.tagline}>Find your Kula</Text>
       </Animated.View>
     </View>
   );
@@ -99,18 +94,5 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 200,
-    marginBottom: 30,
-  },
-  text: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#00D4AA',
-    textAlign: 'center',
-  },
-  tagline: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
   },
 });

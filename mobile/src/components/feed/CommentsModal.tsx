@@ -86,19 +86,15 @@ export default function CommentsModal({
   };
 
   const handleSendComment = async () => {
-    if (!newComment.trim()) {
-      return;
-    }
+  if (!newComment.trim()) {
+    return;
+  }
 
-    try {
-      setSending(true);
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('Ошибка', 'Нужно войти в аккаунт');
-        return;
-      }
-
-      await commentsAPI.add(token, eventId, newComment.trim());
+  try {
+    setSending(true);
+    
+    // ✅ Токен автоматически через interceptor
+    await commentsAPI.add(eventId, newComment.trim());
       setNewComment('');
       await loadComments(); // Перезагружаем список
       console.log('💬 Комментарий отправлен');
@@ -124,7 +120,7 @@ export default function CommentsModal({
               const token = await getToken();
               if (!token) return;
 
-              await commentsAPI.delete(token, commentId);
+              await commentsAPI.delete(commentId);
               await loadComments();
               console.log('🗑️ Комментарий удалён');
             } catch (error) {

@@ -1,11 +1,11 @@
+
 // ═══════════════════════════════════════════════════════
 // EVENT DETAIL SCREEN - ДЕТАЛИ СОБЫТИЯ
 // ═══════════════════════════════════════════════════════
 // Показывает полную информацию о событии:
-// - Карта (половина экрана)
-// - Название, дата, описание
-// - Рейтинг создателя
-// - Количество участников
+// - Карта с приблизительным местоположением (радиус 700м)
+// - Точный адрес только для участников
+// - Кнопка "Участвовать" для получения точных данных
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +18,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
+import MapView, { Marker, Circle, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
 import { getToken } from '../../services/auth';
@@ -28,6 +28,7 @@ interface Event {
   title: string;
   description: string;
   location: string;
+  locationArea: string;
   latitude: number;
   longitude: number;
   dateTime: string;
@@ -35,6 +36,7 @@ interface Event {
   category: string;
   maxParticipants: number;
   participants: number;
+  isParticipant: boolean;
   creator: {
     id: string;
     username: string;
@@ -50,38 +52,65 @@ export default function EventDetailScreen() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [participating, setParticipating] = useState(false);
   const [mapType, setMapType] = useState<MapType>('standard');
 
   useEffect(() => {
     loadEvent();
   }, [eventId]);
 
-  const loadEvent = async () => {
+const loadEvent = async () => {
+  try {
+    setLoading(true);
+    
+    // ✅ Используем новый API
+    const data = await eventsAPI.getById(eventId);
+    
+    setEvent({
+      ...data,
+      participants: data.participants || 0,
+      creator: {
+        ...data.creator,
+        rating: data.creator.rating || 4.5,
+      },
+    });
+  } catch (error) {
+    console.error('Ошибка загрузки события:', error);
+    Alert.alert('Ошибка', 'Не удалось загрузить событие');
+    navigation.goBack();
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleParticipate = async () => {
+      // TODO: Нужно добавить endpoint в backend:
+  // POST /api/events/:id/participate
     try {
-      setLoading(true);
+      setParticipating(true);
       const token = await getToken();
-      const data = await eventsAPI.getAll(token || undefined);
       
-      const foundEvent = data.find((e: any) => e.id === eventId);
+      const response = await fetch(`http://192.168.1.100:3000/api/events/${eventId}/participate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       
-      if (foundEvent) {
-        setEvent({
-          ...foundEvent,
-          participants: foundEvent.participants || 0,
-          creator: {
-            ...foundEvent.creator,
-            rating: foundEvent.creator.rating || 4.5,
-          },
-        });
+      if (response.ok) {
+        Alert.alert('Успех! 🎉', 'Точный адрес теперь доступен', [
+          { text: 'OK', onPress: () => loadEvent() }
+        ]);
       } else {
-        Alert.alert('Ошибка', 'Событие не найдено');
-        navigation.goBack();
+        const error = await response.json();
+        Alert.alert('Ошибка', error.error || 'Не удалось записаться');
       }
     } catch (error) {
-      console.error('Ошибка загрузки события:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить событие');
+      console.error('Ошибка записи:', error);
+      Alert.alert('Ошибка', 'Не удалось записаться');
     } finally {
-      setLoading(false);
+      setParticipating(false);
     }
   };
 
@@ -138,8 +167,8 @@ export default function EventDetailScreen() {
           initialRegion={{
             latitude: event.latitude,
             longitude: event.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
           }}
           scrollEnabled={true}
           zoomEnabled={true}
@@ -157,6 +186,21 @@ export default function EventDetailScreen() {
               <Text style={styles.markerEmoji}>⭐</Text>
             </View>
           </Marker>
+          
+          
+{/* Радиус приблизительности (если НЕ участник) */}
+          {!event.isParticipant && (
+            <Circle
+              center={{
+                latitude: event.latitude,
+                longitude: event.longitude,
+              }}
+              radius={700} // 700 метров
+              fillColor="rgba(0, 212, 170, 0.2)" // Прозрачный бирюзовый
+              strokeColor="rgba(0, 212, 170, 0.5)"
+              strokeWidth={2}
+            />
+          )}
         </MapView>
 
         <TouchableOpacity
@@ -198,7 +242,14 @@ export default function EventDetailScreen() {
           <Text style={styles.infoIcon}>📍</Text>
           <View style={styles.infoTextContainer}>
             <Text style={styles.infoLabel}>Где</Text>
-            <Text style={styles.infoValue}>{event.location}</Text>
+            <Text style={styles.infoValue}>
+              {event.location}
+            </Text>
+            {!event.isParticipant && (
+              <Text style={styles.infoHint}>
+                🔒 Точный адрес откроется после записи
+              </Text>
+            )}
           </View>
         </View>
 
@@ -243,11 +294,21 @@ export default function EventDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.participateButton}
-          onPress={() => Alert.alert('Участие', 'Скоро добавим запись в backend')}
+          style={[
+            styles.participateButton,
+            event.isParticipant && styles.participateButtonDisabled
+          ]}
+          onPress={handleParticipate}
           activeOpacity={0.8}
+          disabled={event.isParticipant || participating}
         >
-          <Text style={styles.participateText}>Участвовать</Text>
+          {participating ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.participateText}>
+              {event.isParticipant ? 'Вы участвуете ✓' : 'Участвовать'}
+            </Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -381,6 +442,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     lineHeight: 22,
   },
+  infoHint: {
+    fontSize: 12,
+    color: '#00D4AA',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   descriptionContainer: {
     marginTop: 8,
     marginBottom: 24,
@@ -457,6 +524,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 40,
+  },
+  participateButtonDisabled: {
+    backgroundColor: '#666',
   },
   participateText: {
     color: '#fff',

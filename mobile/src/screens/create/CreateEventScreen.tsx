@@ -20,7 +20,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AddressAutocomplete from '../../components/create/AddressAutocomplete';
-import { getToken } from '../../services/auth';
 import { eventsAPI } from '../../services/api';
 
 const CATEGORIES = [
@@ -55,7 +54,7 @@ export default function CreateEventScreen() {
   const [endDate, setEndDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(20, 0, 0, 0); // +2 часа по умолчанию
+    tomorrow.setHours(20, 0, 0, 0);
     return tomorrow;
   });
 
@@ -64,7 +63,6 @@ export default function CreateEventScreen() {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  // Форматирование для отображения
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('ru-RU', {
       day: '2-digit',
@@ -80,7 +78,6 @@ export default function CreateEventScreen() {
     });
   };
 
-  // Обработка выбора адреса
   const handleSelectAddress = (address: string, lat: number, lon: number) => {
     setLocation(address);
     setLatitude(lat);
@@ -88,7 +85,6 @@ export default function CreateEventScreen() {
     console.log(`📍 Координаты сохранены: ${lat}, ${lon}`);
   };
 
-  // Обработка изменения даты начала
   const onDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -97,14 +93,12 @@ export default function CreateEventScreen() {
       newDate.setMinutes(eventDate.getMinutes());
       setEventDate(newDate);
       
-      // Автоматически устанавливаем endDate на +2 часа
       const newEndDate = new Date(newDate);
       newEndDate.setHours(newDate.getHours() + 2);
       setEndDate(newEndDate);
     }
   };
 
-  // Обработка изменения времени начала
   const onTimeChange = (event: any, selectedTime?: Date) => {
     setShowTimePicker(false);
     if (selectedTime) {
@@ -113,14 +107,12 @@ export default function CreateEventScreen() {
       newDate.setMinutes(selectedTime.getMinutes());
       setEventDate(newDate);
       
-      // Автоматически устанавливаем endDate на +2 часа
       const newEndDate = new Date(newDate);
       newEndDate.setHours(newDate.getHours() + 2);
       setEndDate(newEndDate);
     }
   };
 
-  // Обработка изменения даты окончания
   const onEndDateChange = (event: any, selectedDate?: Date) => {
     setShowEndDatePicker(false);
     if (selectedDate) {
@@ -131,7 +123,6 @@ export default function CreateEventScreen() {
     }
   };
 
-  // Обработка изменения времени окончания
   const onEndTimeChange = (event: any, selectedTime?: Date) => {
     setShowEndTimePicker(false);
     if (selectedTime) {
@@ -142,7 +133,6 @@ export default function CreateEventScreen() {
     }
   };
 
-  // Выбор видео
   const handlePickVideo = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -169,7 +159,6 @@ export default function CreateEventScreen() {
     }
   };
 
-  // Публикация события
   const handlePublish = async () => {
     if (!title.trim()) {
       Alert.alert('Ошибка', 'Введите название события!');
@@ -192,7 +181,6 @@ export default function CreateEventScreen() {
       return;
     }
     
-    // Валидация количества участников
     const participants = parseInt(maxParticipants);
     if (isNaN(participants) || participants < 4) {
       Alert.alert('Минимальное количество участников', 'Минимум 4 человека для предотвращения романтических встреч 1-на-1 😊');
@@ -203,7 +191,6 @@ export default function CreateEventScreen() {
       return;
     }
 
-    // Валидация даты только если включён переключатель
     if (hasEndDate) {
       const now = new Date();
       const minDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -228,28 +215,19 @@ export default function CreateEventScreen() {
     setIsLoading(true);
 
     try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('Ошибка', 'Нужно войти в аккаунт!');
-        setIsLoading(false);
-        return;
-      }
-
       const dateTimeString = eventDate.toISOString();
-      
-      // Автоматический расчёт endDate если переключатель выключен
       const endDateString = hasEndDate 
         ? endDate.toISOString() 
-        : new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString(); // +2 часа
+        : new Date(eventDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
       
       console.log('✅ Дата начала:', dateTimeString);
       console.log('✅ Дата окончания:', endDateString);
       console.log('✅ Координаты:', latitude, longitude);
 
-      // ВРЕМЕННО: тестовое видео
       const videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
-      const response = await eventsAPI.create(token, {
+      // ✅ Токен добавляется автоматически через interceptor!
+      const response = await eventsAPI.create({
         title: title.trim(),
         description: '',
         location: location.trim(),
@@ -295,7 +273,6 @@ export default function CreateEventScreen() {
         style={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Видео */}
         <TouchableOpacity
           style={styles.videoButton}
           onPress={handlePickVideo}
@@ -325,7 +302,6 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Название */}
         <View style={styles.field}>
           <Text style={styles.label}>Название события *</Text>
           <TextInput
@@ -338,7 +314,6 @@ export default function CreateEventScreen() {
           />
         </View>
 
-        {/* Место с автодополнением */}
         <View style={styles.field}>
           <Text style={styles.label}>Место * {latitude && longitude && '📍'}</Text>
           <AddressAutocomplete
@@ -355,7 +330,6 @@ export default function CreateEventScreen() {
           )}
         </View>
 
-        {/* Дата и время НАЧАЛА */}
         <View style={styles.row}>
           <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
             <Text style={styles.label}>Дата начала *</Text>
@@ -382,7 +356,6 @@ export default function CreateEventScreen() {
           </View>
         </View>
 
-        {/* Переключатель даты окончания */}
         <View style={styles.switchContainer}>
           <Text style={styles.switchLabel}>Указать время окончания</Text>
           <Switch
@@ -394,7 +367,6 @@ export default function CreateEventScreen() {
           />
         </View>
 
-        {/* Дата и время ОКОНЧАНИЯ (только если включён переключатель) */}
         {hasEndDate && (
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
@@ -423,7 +395,6 @@ export default function CreateEventScreen() {
           </View>
         )}
 
-        {/* Date/Time Pickers */}
         {showDatePicker && (
           <DateTimePicker
             value={eventDate}
@@ -466,7 +437,6 @@ export default function CreateEventScreen() {
 
         <Text style={styles.hint}>💡 Событие от 24 часов до 2 недель</Text>
 
-        {/* Макс участников */}
         <View style={styles.field}>
           <Text style={styles.label}>Количество участников *</Text>
           <TextInput
@@ -484,7 +454,6 @@ export default function CreateEventScreen() {
           💡 Минимум 4 человека, максимум 20
         </Text>
 
-        {/* Категория */}
         <View style={styles.field}>
           <Text style={styles.label}>Категория *</Text>
           <View style={styles.categories}>
@@ -513,7 +482,6 @@ export default function CreateEventScreen() {
           </View>
         </View>
 
-        {/* Кнопка публикации */}
         <TouchableOpacity
           style={[styles.publishButton, isLoading && styles.publishButtonDisabled]}
           onPress={handlePublish}

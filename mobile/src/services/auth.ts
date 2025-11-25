@@ -1,55 +1,101 @@
 // src/services/auth.ts
 // ═══════════════════════════════════════════════════════
 // СЕРВИС АВТОРИЗАЦИИ
-// Управляет токеном и состоянием авторизации
+// Управляет токенами (access + refresh) и состоянием авторизации
 // ═══════════════════════════════════════════════════════
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Ключ для хранения токена в AsyncStorage
-const TOKEN_KEY = '@mysterymeet_token';
+// Ключи для хранения в AsyncStorage
+const ACCESS_TOKEN_KEY = '@mysterymeet_access_token';
+const REFRESH_TOKEN_KEY = '@mysterymeet_refresh_token';
 const USER_KEY = '@mysterymeet_user';
 
 // ═══════════════════════════════════════════════════════
-// СОХРАНИТЬ ТОКЕН
-// Вызывается после успешного логина/регистрации
+// СОХРАНИТЬ ACCESS TOKEN
+// Короткий токен (15 минут) для обычных запросов
 // ═══════════════════════════════════════════════════════
-export const saveToken = async (token: string) => {
+export const saveAccessToken = async (token: string) => {
   try {
-    await AsyncStorage.setItem(TOKEN_KEY, token);
-    console.log('✅ Token saved');
+    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, token);
+    console.log('✅ Access token saved');
   } catch (error) {
-    console.error('Error saving token:', error);
+    console.error('Error saving access token:', error);
   }
 };
 
 // ═══════════════════════════════════════════════════════
-// ПОЛУЧИТЬ ТОКЕН
-// Вызывается при запуске приложения
+// СОХРАНИТЬ REFRESH TOKEN
+// Долгий токен (30 дней) для обновления access token
 // ═══════════════════════════════════════════════════════
-export const getToken = async (): Promise<string | null> => {
+export const saveRefreshToken = async (token: string) => {
   try {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    await AsyncStorage.setItem(REFRESH_TOKEN_KEY, token);
+    console.log('✅ Refresh token saved');
+  } catch (error) {
+    console.error('Error saving refresh token:', error);
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// СОХРАНИТЬ ОБА ТОКЕНА СРАЗУ
+// Удобная функция для логина/регистрации
+// ═══════════════════════════════════════════════════════
+export const saveTokens = async (accessToken: string, refreshToken: string) => {
+  await saveAccessToken(accessToken);
+  await saveRefreshToken(refreshToken);
+};
+
+// ═══════════════════════════════════════════════════════
+// ПОЛУЧИТЬ ACCESS TOKEN
+// ═══════════════════════════════════════════════════════
+export const getAccessToken = async (): Promise<string | null> => {
+  try {
+    const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
     return token;
   } catch (error) {
-    console.error('Error getting token:', error);
+    console.error('Error getting access token:', error);
     return null;
   }
 };
 
 // ═══════════════════════════════════════════════════════
-// УДАЛИТЬ ТОКЕН
-// Вызывается при выходе
+// ПОЛУЧИТЬ REFRESH TOKEN
 // ═══════════════════════════════════════════════════════
-export const removeToken = async () => {
+export const getRefreshToken = async (): Promise<string | null> => {
   try {
-    await AsyncStorage.removeItem(TOKEN_KEY);
-    await AsyncStorage.removeItem(USER_KEY);
-    console.log('✅ Token removed');
+    const token = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    return token;
   } catch (error) {
-    console.error('Error removing token:', error);
+    console.error('Error getting refresh token:', error);
+    return null;
   }
 };
+
+// ═══════════════════════════════════════════════════════
+// УДАЛИТЬ ВСЕ ТОКЕНЫ
+// Вызывается при выходе
+// ═══════════════════════════════════════════════════════
+export const removeTokens = async () => {
+  try {
+    await AsyncStorage.multiRemove([
+      ACCESS_TOKEN_KEY,
+      REFRESH_TOKEN_KEY,
+      USER_KEY,
+    ]);
+    console.log('✅ All tokens removed');
+  } catch (error) {
+    console.error('Error removing tokens:', error);
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// ОБРАТНАЯ СОВМЕСТИМОСТЬ
+// Старые функции для плавной миграции
+// ═══════════════════════════════════════════════════════
+export const saveToken = saveAccessToken; // Алиас для старого кода
+export const getToken = getAccessToken; // Алиас для старого кода
+export const removeToken = removeTokens; // Алиас для старого кода
 
 // ═══════════════════════════════════════════════════════
 // СОХРАНИТЬ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
@@ -84,6 +130,6 @@ export const getUser = async (): Promise<any | null> => {
 // Возвращает true если пользователь залогинен
 // ═══════════════════════════════════════════════════════
 export const isAuthenticated = async (): Promise<boolean> => {
-  const token = await getToken();
+  const token = await getAccessToken();
   return token !== null;
 };

@@ -8,9 +8,19 @@ const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// Middleware проверки токена
+// ═══════════════════════════════════════════════════════
+// ПРОВЕРКА СЕКРЕТОВ
+// ═══════════════════════════════════════════════════════
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET не установлен!');
+  process.exit(1);
+}
+
+// ═══════════════════════════════════════════════════════
+// MIDDLEWARE ПРОВЕРКИ ТОКЕНА
+// ═══════════════════════════════════════════════════════
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   
@@ -27,7 +37,9 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// ═══════════════════════════════════════════════════════
 // GET /api/comments/:eventId - Получить комментарии
+// ═══════════════════════════════════════════════════════
 router.get('/:eventId', async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -36,7 +48,10 @@ router.get('/:eventId', async (req, res) => {
       where: { eventId },
       include: {
         user: {
-          select: { username: true }
+          select: { 
+            id: true,
+            username: true 
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -49,7 +64,27 @@ router.get('/:eventId', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// GET /api/comments/:eventId/count - Получить количество
+// ═══════════════════════════════════════════════════════
+router.get('/:eventId/count', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const count = await prisma.comment.count({
+      where: { eventId }
+    });
+
+    res.json({ count });
+  } catch (error) {
+    console.error('❌ Ошибка подсчёта комментариев:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
 // POST /api/comments/:eventId - Добавить комментарий
+// ═══════════════════════════════════════════════════════
 router.post('/:eventId', authMiddleware, async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -60,6 +95,15 @@ router.post('/:eventId', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Текст комментария обязателен' });
     }
 
+    // Проверяем что событие существует
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Событие не найдено' });
+    }
+
     const comment = await prisma.comment.create({
       data: {
         text: text.trim(),
@@ -68,7 +112,10 @@ router.post('/:eventId', authMiddleware, async (req, res) => {
       },
       include: {
         user: {
-          select: { username: true }
+          select: { 
+            id: true,
+            username: true 
+          }
         }
       }
     });
@@ -81,7 +128,9 @@ router.post('/:eventId', authMiddleware, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
 // DELETE /api/comments/:commentId - Удалить комментарий
+// ═══════════════════════════════════════════════════════
 router.delete('/:commentId', authMiddleware, async (req, res) => {
   try {
     const { commentId } = req.params;

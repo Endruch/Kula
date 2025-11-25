@@ -1,10 +1,8 @@
 // ═══════════════════════════════════════════════════════
 // EVENT CARD - КАРТОЧКА СОБЫТИЯ (ОБНОВЛЁННАЯ)
 // ═══════════════════════════════════════════════════════
-// Добавлено:
-// - Боковая панель с кнопками (лайк, комменты, карта)
-// - Счётчики лайков и комментариев
-// - Убран аватар создателя
+// Кнопка "Подробнее" открывает экран события
+// Убрана кнопка карты 🗺️
 // ═══════════════════════════════════════════════════════
 
 import React from 'react';
@@ -28,7 +26,6 @@ interface Event {
 
 interface EventCardProps {
   event: Event;
-  onParticipate: () => void;
   onLike: () => void;
   onComment: () => void;
   onMapPress: () => void;
@@ -36,7 +33,6 @@ interface EventCardProps {
 
 export default function EventCard({ 
   event, 
-  onParticipate, 
   onLike,
   onComment,
   onMapPress,
@@ -65,15 +61,6 @@ export default function EventCard({
         >
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionCount}>{event.comments}</Text>
-        </TouchableOpacity>
-
-        {/* Карта (переход к месту события) */}
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={onMapPress}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.actionIcon}>🗺️</Text>
         </TouchableOpacity>
       </View>
 
@@ -113,13 +100,13 @@ export default function EventCard({
         </View>
       </View>
 
-      {/* Кнопка участия */}
+      {/* Кнопка "Подробнее" */}
       <TouchableOpacity 
         style={styles.participateButton}
-        onPress={onParticipate}
+        onPress={onMapPress}
         activeOpacity={0.8}
       >
-        <Text style={styles.participateText}>Участвовать</Text>
+        <Text style={styles.participateText}>Подробнее</Text>
       </TouchableOpacity>
     </View>
   );
@@ -131,14 +118,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
-    paddingBottom: 40,
+    padding: 5,
+    paddingBottom: 80,
   },
   // Боковая панель
   sidePanel: {
     position: 'absolute',
     right: 20,
-    bottom: 180,
+    bottom: 400,
     alignItems: 'center',
   },
   actionButton: {
@@ -156,20 +143,20 @@ const styles = StyleSheet.create({
   },
   // Информация о событии
   infoContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    marginRight: 80, // Место для боковой панели
+    marginRight: 5,
   },
   creator: {
     fontSize: 14,
     color: '#00D4AA',
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 25,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 12,
@@ -177,11 +164,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 7,
   },
   icon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 17,
+    marginRight: 6,
   },
   location: {
     fontSize: 16,
@@ -189,26 +176,26 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   dateTime: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#fff',
     opacity: 0.9,
   },
   participants: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#fff',
     opacity: 0.9,
   },
   participateButton: {
     backgroundColor: '#00D4AA',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 30,
+    paddingVertical: 17,
+    paddingHorizontal: 30,
+    borderRadius: 15,
     alignItems: 'center',
-    marginRight: 80, // Место для боковой панели
+    marginRight: 5,
   },
   participateText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: 'bold',
   },
 });

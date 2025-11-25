@@ -15,7 +15,7 @@ import { authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterScreen({ navigation }: any) {
-  const { login } = useAuth(); // ← ДОБАВИЛИ!
+  const { login } = useAuth();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -51,8 +51,8 @@ export default function RegisterScreen({ navigation }: any) {
       const response = await authAPI.register(name, email, password);
       console.log('Registration success:', response);
 
-      // Используем функцию login из контекста
-      await login(response.token, response.user);
+      // ✅ ОБНОВЛЕНО: Используем accessToken и refreshToken
+      await login(response.accessToken, response.refreshToken, response.user);
       
       // Навигация произойдёт автоматически!
     } catch (error: any) {
@@ -74,7 +74,7 @@ export default function RegisterScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>Регистрация</Text>
-        <Text style={styles.subtitle}>Создайте аккаунт в MysteryMeet</Text>
+        <Text style={styles.subtitle}>Создайте аккаунт в KULA</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
@@ -139,7 +139,7 @@ export default function RegisterScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
 
-<TouchableOpacity
+          <TouchableOpacity
             onPress={() => navigation.navigate('Login')}
             style={styles.linkContainer}
           >

@@ -105,11 +105,11 @@ export default function MapScreen({ route }: any) {
   };
 
   // Загрузка событий
-  const loadEvents = async () => {
-    try {
-      setLoading(true);
-      const token = await getToken();
-      const data = await eventsAPI.getAll(token || undefined);
+const loadEvents = async () => {
+  try {
+    setLoading(true);
+    // ✅ Токен автоматически через interceptor
+    const data = await eventsAPI.getAll();
       
       // Фильтруем события с координатами
       const eventsWithCoords = data.filter(

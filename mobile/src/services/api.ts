@@ -3,10 +3,17 @@
 // ═══════════════════════════════════════════════════════
 // Единое место для всех API запросов
 // Автоматически подставляет правильный URL для эмулятора/симулятора
+// Автоматически обновляет токены при истечении
 // ═══════════════════════════════════════════════════════
 
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { 
+  getAccessToken, 
+  getRefreshToken, 
+  saveAccessToken,
+  removeTokens 
+} from './auth';
 
 // Автоматическое определение API URL
 const getApiUrl = () => {
@@ -35,7 +42,102 @@ const apiClient = axios.create({
   },
 });
 
-// API для авторизации
+// ═══════════════════════════════════════════════════════
+// INTERCEPTOR: АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ ACCESS TOKEN
+// ═══════════════════════════════════════════════════════
+apiClient.interceptors.request.use(
+  async (config) => {
+    const token = await getAccessToken();
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ═══════════════════════════════════════════════════════
+// INTERCEPTOR: АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ТОКЕНА
+// ═══════════════════════════════════════════════════════
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Если 401 и это не повторный запрос
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Если уже обновляем токен - добавляем запрос в очередь
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await getRefreshToken();
+        
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        // Обновляем токен
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const { accessToken } = response.data;
+        await saveAccessToken(accessToken);
+
+        // Обновляем заголовок
+        apiClient.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+        processQueue(null, accessToken);
+        
+        return apiClient(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        await removeTokens();
+        
+        // Здесь можно добавить редирект на логин
+        // Но в React Native это сложнее чем в web
+        // Поэтому просто очищаем токены
+        
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// ═══════════════════════════════════════════════════════
+// API ДЛЯ АВТОРИЗАЦИИ
+// ═══════════════════════════════════════════════════════
 export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/login', { email, password });
@@ -50,22 +152,24 @@ export const authAPI = {
     });
     return response.data;
   },
+
+  refreshToken: async (refreshToken: string) => {
+    const response = await apiClient.post('/auth/refresh', { refreshToken });
+    return response.data;
+  },
 };
 
-// API для событий
+// ═══════════════════════════════════════════════════════
+// API ДЛЯ СОБЫТИЙ
+// ═══════════════════════════════════════════════════════
 export const eventsAPI = {
-  create: async (token: string, eventData: any) => {
-    const response = await apiClient.post('/events', eventData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  create: async (eventData: any) => {
+    const response = await apiClient.post('/events', eventData);
     return response.data;
   },
 
-  getAll: async (token?: string) => {
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await apiClient.get('/events', { headers });
+  getAll: async () => {
+    const response = await apiClient.get('/events');
     return response.data;
   },
 
@@ -74,21 +178,13 @@ export const eventsAPI = {
     return response.data;
   },
 
-  getMy: async (token: string) => {
-    const response = await apiClient.get('/events/my', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  getMy: async () => {
+    const response = await apiClient.get('/events/my');
     return response.data;
   },
 
-  delete: async (token: string, id: string) => {
-    const response = await apiClient.delete(`/events/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`/events/${id}`);
     return response.data;
   },
 };
@@ -97,27 +193,16 @@ export const eventsAPI = {
 // API ДЛЯ ЛАЙКОВ
 // ═══════════════════════════════════════════════════════
 export const likesAPI = {
-  // Лайкнуть/убрать лайк (toggle)
-  toggle: async (token: string, eventId: string) => {
-    const response = await apiClient.post(
-      `/likes/${eventId}`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+  toggle: async (eventId: string) => {
+    const response = await apiClient.post(`/likes/${eventId}`);
     return response.data;
   },
 
-  // Проверить лайкнул ли пользователь
-  check: async (token: string, eventId: string) => {
-    const response = await apiClient.get(`/likes/${eventId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  check: async (eventId: string) => {
+    const response = await apiClient.get(`/likes/${eventId}`);
     return response.data;
   },
 
-  // Получить количество лайков
   getCount: async (eventId: string) => {
     const response = await apiClient.get(`/likes/${eventId}/count`);
     return response.data;
@@ -128,33 +213,21 @@ export const likesAPI = {
 // API ДЛЯ КОММЕНТАРИЕВ
 // ═══════════════════════════════════════════════════════
 export const commentsAPI = {
-  // Добавить комментарий
-  add: async (token: string, eventId: string, text: string) => {
-    const response = await apiClient.post(
-      `/comments/${eventId}`,
-      { text },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+  add: async (eventId: string, text: string) => {
+    const response = await apiClient.post(`/comments/${eventId}`, { text });
     return response.data;
   },
 
-  // Получить все комментарии события
   getAll: async (eventId: string) => {
     const response = await apiClient.get(`/comments/${eventId}`);
     return response.data;
   },
 
-  // Удалить комментарий
-  delete: async (token: string, commentId: string) => {
-    const response = await apiClient.delete(`/comments/${commentId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  delete: async (commentId: string) => {
+    const response = await apiClient.delete(`/comments/${commentId}`);
     return response.data;
   },
 
-  // Получить количество комментариев
   getCount: async (eventId: string) => {
     const response = await apiClient.get(`/comments/${eventId}/count`);
     return response.data;

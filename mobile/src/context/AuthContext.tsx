@@ -5,13 +5,19 @@
 // ═══════════════════════════════════════════════════════
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { getToken, getUser, saveToken as saveAuthToken, saveUser as saveAuthUser, removeToken as removeAuthToken } from '../services/auth';
+import { 
+  getAccessToken, 
+  getUser, 
+  saveTokens,
+  saveUser as saveAuthUser, 
+  removeTokens 
+} from '../services/auth';
 
 interface AuthContextType {
   isLoggedIn: boolean;
   isLoading: boolean;
   userData: any | null;
-  login: (token: string, user: any) => Promise<void>;
+  login: (accessToken: string, refreshToken: string, user: any) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -31,7 +37,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkAuth = async () => {
     try {
       console.log('🔍 Checking authentication...');
-      const token = await getToken();
+      const token = await getAccessToken();
       const user = await getUser();
 
       if (token && user) {
@@ -52,15 +58,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (token: string, user: any) => {
-    await saveAuthToken(token);
+  const login = async (accessToken: string, refreshToken: string, user: any) => {
+    await saveTokens(accessToken, refreshToken);
     await saveAuthUser(user);
     setIsLoggedIn(true);
     setUserData(user);
   };
 
   const logout = async () => {
-    await removeAuthToken();
+    await removeTokens();
     setIsLoggedIn(false);
     setUserData(null);
   };
