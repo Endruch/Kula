@@ -212,7 +212,7 @@ export default function CreateEventScreen() {
       }
     }
 
-    setIsLoading(true);
+   setIsLoading(true);
 
     try {
       const dateTimeString = eventDate.toISOString();
@@ -224,9 +224,8 @@ export default function CreateEventScreen() {
       console.log('✅ Дата окончания:', endDateString);
       console.log('✅ Координаты:', latitude, longitude);
 
-      const videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-
       // ✅ Токен добавляется автоматически через interceptor!
+      // 🎬 ВРЕМЕННО: не отправляем videoUrl, backend сам подставит случайное
       const response = await eventsAPI.create({
         title: title.trim(),
         description: '',
@@ -237,7 +236,6 @@ export default function CreateEventScreen() {
         endDate: endDateString,
         category: category,
         maxParticipants: participants,
-        videoUrl: videoUrl,
       });
 
       console.log('✅ Событие создано:', response);

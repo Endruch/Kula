@@ -1,14 +1,8 @@
-
 // ═══════════════════════════════════════════════════════
 // EVENT DETAIL SCREEN - ДЕТАЛИ СОБЫТИЯ
 // ═══════════════════════════════════════════════════════
-// Показывает полную информацию о событии:
-// - Карта с приблизительным местоположением (радиус 700м)
-// - Точный адрес только для участников
-// - Кнопка "Участвовать" для получения точных данных
-// ═══════════════════════════════════════════════════════
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,10 +12,14 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
+import MapView, { Marker, Circle, UrlTile, Region } from 'react-native-maps';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
 import { getToken } from '../../services/auth';
+
+// OSM Tile servers
+const OSM_STANDARD = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
 interface Event {
   id: string;
@@ -48,44 +46,49 @@ export default function EventDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const eventId = route.params?.eventId;
-  const fromFeedIndex = route.params?.fromFeedIndex;
+  const mapRef = useRef<MapView>(null);
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [participating, setParticipating] = useState(false);
-  const [mapType, setMapType] = useState<MapType>('standard');
+  const [tileUrl, setTileUrl] = useState(OSM_STANDARD);
+  const [region, setRegion] = useState<Region | null>(null);
 
   useEffect(() => {
     loadEvent();
   }, [eventId]);
 
-const loadEvent = async () => {
-  try {
-    setLoading(true);
-    
-    // ✅ Используем новый API
-    const data = await eventsAPI.getById(eventId);
-    
-    setEvent({
-      ...data,
-      participants: data.participants || 0,
-      creator: {
-        ...data.creator,
-        rating: data.creator.rating || 4.5,
-      },
-    });
-  } catch (error) {
-    console.error('Ошибка загрузки события:', error);
-    Alert.alert('Ошибка', 'Не удалось загрузить событие');
-    navigation.goBack();
-  } finally {
-    setLoading(false);
-  }
-};
+  const loadEvent = async () => {
+    try {
+      setLoading(true);
+      const data = await eventsAPI.getById(eventId);
+      
+      const eventData = {
+        ...data,
+        participants: data.participants || 0,
+        creator: {
+          ...data.creator,
+          rating: data.creator.rating || 4.5,
+        },
+      };
+
+      setEvent(eventData);
+      setRegion({
+        latitude: eventData.latitude,
+        longitude: eventData.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки события:', error);
+      Alert.alert('Ошибка', 'Не удалось загрузить событие');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleParticipate = async () => {
-      // TODO: Нужно добавить endpoint в backend:
-  // POST /api/events/:id/participate
     try {
       setParticipating(true);
       const token = await getToken();
@@ -118,8 +121,32 @@ const loadEvent = async () => {
     navigation.goBack();
   };
 
+  const handleZoomIn = () => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta / 2,
+        longitudeDelta: region.longitudeDelta / 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta * 2,
+        longitudeDelta: region.longitudeDelta * 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  };
+
   const toggleMapType = () => {
-    setMapType(prev => prev === 'standard' ? 'satellite' : 'standard');
+    setTileUrl(prev => prev === OSM_STANDARD ? OSM_SATELLITE : OSM_STANDARD);
   };
 
   const formatDate = (dateString: string) => {
@@ -154,7 +181,7 @@ const loadEvent = async () => {
     );
   }
 
-  if (!event) {
+  if (!event || !region) {
     return null;
   }
 
@@ -162,20 +189,34 @@ const loadEvent = async () => {
     <View style={styles.container}>
       <View style={styles.mapContainer}>
         <MapView
+          ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_DEFAULT}
-          initialRegion={{
-            latitude: event.latitude,
-            longitude: event.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }}
+          region={region}
+          onRegionChangeComplete={setRegion}
           scrollEnabled={true}
           zoomEnabled={true}
-          rotateEnabled={true}
-          pitchEnabled={true}
-          mapType={mapType}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          showsBuildings={false}
+          showsTraffic={false}
+          showsIndoors={false}
+          toolbarEnabled={false}
+          mapType="none"
+          liteMode={false}
+          loadingEnabled={false}
+          loadingIndicatorColor="#00D4AA"
+          loadingBackgroundColor="#1a1a2e"
         >
+          <UrlTile
+            urlTemplate={tileUrl}
+            maximumZ={19}
+            flipY={false}
+          />
+
           <Marker
             coordinate={{
               latitude: event.latitude,
@@ -187,21 +228,27 @@ const loadEvent = async () => {
             </View>
           </Marker>
           
-          
-{/* Радиус приблизительности (если НЕ участник) */}
           {!event.isParticipant && (
             <Circle
               center={{
                 latitude: event.latitude,
                 longitude: event.longitude,
               }}
-              radius={700} // 700 метров
-              fillColor="rgba(0, 212, 170, 0.2)" // Прозрачный бирюзовый
+              radius={700}
+              fillColor="rgba(0, 212, 170, 0.2)"
               strokeColor="rgba(0, 212, 170, 0.5)"
               strokeWidth={2}
             />
           )}
         </MapView>
+
+        {/* Скрываем Legal на iOS */}
+        <View style={styles.legalBlocker} pointerEvents="none" />
+
+        {/* Атрибуция OpenStreetMap */}
+        <View style={styles.attribution} pointerEvents="none">
+          <Text style={styles.attributionText}>© OpenStreetMap</Text>
+        </View>
 
         <TouchableOpacity
           style={styles.closeButton}
@@ -211,15 +258,22 @@ const loadEvent = async () => {
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.mapTypeButton}
-          onPress={toggleMapType}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.mapTypeButtonText}>
-            {mapType === 'standard' ? '🛰️' : '🗺️'}
-          </Text>
-        </TouchableOpacity>
+        {/* Кнопки управления картой */}
+        <View style={styles.mapControls}>
+          <TouchableOpacity style={styles.mapControlButton} onPress={handleZoomIn}>
+            <Text style={styles.mapControlText}>+</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.mapControlButton} onPress={handleZoomOut}>
+            <Text style={styles.mapControlText}>−</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.mapControlButton} onPress={toggleMapType}>
+            <Text style={styles.mapControlIcon}>
+              {tileUrl === OSM_STANDARD ? '🛰️' : '🗺️'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -347,6 +401,27 @@ const styles = StyleSheet.create({
   markerEmoji: {
     fontSize: 40,
   },
+  legalBlocker: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: '#1a1a2e',
+  },
+  attribution: {
+    position: 'absolute',
+    bottom: 5,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  attributionText: {
+    fontSize: 10,
+    color: '#333',
+  },
   closeButton: {
     position: 'absolute',
     top: 60,
@@ -368,11 +443,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  mapTypeButton: {
+  mapControls: {
     position: 'absolute',
-    top: 60,
     right: 20,
-    backgroundColor: '#00D4AA',
+    top: 60,
+    gap: 12,
+  },
+  mapControlButton: {
+    backgroundColor: '#fff',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -384,7 +462,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  mapTypeButtonText: {
+  mapControlText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a1a2e',
+  },
+  mapControlIcon: {
     fontSize: 24,
   },
   content: {

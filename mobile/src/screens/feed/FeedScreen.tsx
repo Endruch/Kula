@@ -31,6 +31,30 @@ import { getToken } from '../../services/auth';
 const { height } = Dimensions.get('window');
 
 // ═══════════════════════════════════════════════════════
+// 🎬 ВРЕМЕННЫЕ ТЕСТОВЫЕ ВИДЕО (удалить когда загрузка на сервер будет работать)
+// ═══════════════════════════════════════════════════════
+const TEMP_TEST_VIDEOS = [
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+];
+
+// Функция для случайного выбора видео
+const getRandomTestVideo = () => {
+  return TEMP_TEST_VIDEOS[Math.floor(Math.random() * TEMP_TEST_VIDEOS.length)];
+};
+// ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
 // ФУНКЦИИ РАСЧЁТА РАССТОЯНИЯ И СОРТИРОВКИ
 // ═══════════════════════════════════════════════════════
 
@@ -189,11 +213,10 @@ export default function FeedScreen({ route }: any) {
     }
   }, [route?.params?.scrollToIndex]);
 
-const loadEvents = async () => {
-  try {
-    setLoading(true);
-    // ✅ Токен автоматически через interceptor
-    const data = await eventsAPI.getAll();
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await eventsAPI.getAll();
       console.log('✅ События загружены:', data.length);
       
       const formattedEvents = data.map((event: any) => ({
@@ -208,7 +231,8 @@ const loadEvents = async () => {
         likes: event.likes || 0,
         comments: event.comments || 0,
         isLiked: event.isLiked || false,
-        videoUrl: event.videoUrl,
+        // 🎬 ВРЕМЕННО: Если нет videoUrl, подставляем случайное тестовое видео
+        videoUrl: event.videoUrl || getRandomTestVideo(),
         creator: {
           id: event.creator.id,
           name: event.creator.username,
@@ -223,6 +247,7 @@ const loadEvents = async () => {
       );
 
       console.log('🎲 События отсортированы по расстоянию и перемешаны');
+      console.log('🎬 Тестовые видео подставлены для событий без videoUrl');
       setEvents(sortedEvents);
     } catch (error) {
       console.error('Ошибка загрузки событий:', error);
@@ -239,13 +264,10 @@ const loadEvents = async () => {
     }
   }).current;
 
-
-
   // Когда нажали "Лайк"
-const handleLike = async (eventId: string) => {
-  try {
-    // ✅ Токен автоматически через interceptor
-    const result = await likesAPI.toggle(eventId);
+  const handleLike = async (eventId: string) => {
+    try {
+      const result = await likesAPI.toggle(eventId);
       
       setEvents(prevEvents => 
         prevEvents.map(event => 
@@ -333,46 +355,46 @@ const handleLike = async (eventId: string) => {
     });
   };
 
-// Переключение видимости UI + двойной тап
-const handleTap = () => {
-  const now = Date.now();
-  const DOUBLE_PRESS_DELAY = 300;
+  // Переключение видимости UI + двойной тап
+  const handleTap = () => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
 
-  if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
-    // Двойной тап - лайк (только если ещё не лайкнуто!)
-    const currentEvent = events[activeIndex];
-    if (currentEvent && !currentEvent.isLiked) {
-      console.log('❤️ Двойной тап - ставим лайк!');
-      handleLike(currentEvent.id);
-      showHeartAnimation();
-    } else if (currentEvent && currentEvent.isLiked) {
-      console.log('❤️ Лайк уже стоит - ничего не делаем');
-    }
-    
-    // Сбрасываем lastTap чтобы не считалось как одинарный тап
-    lastTap.current = 0;
-    return; // ← ВАЖНО! Выходим и НЕ меняем UI
-  }
-
-  // Запускаем таймер для одинарного тапа
-  setTimeout(() => {
-    if (now === lastTap.current) {
-      // Одинарный тап - переключение UI
-      const toValue = isUIVisible ? 0 : 1;
+    if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
+      // Двойной тап - лайк (только если ещё не лайкнуто!)
+      const currentEvent = events[activeIndex];
+      if (currentEvent && !currentEvent.isLiked) {
+        console.log('❤️ Двойной тап - ставим лайк!');
+        handleLike(currentEvent.id);
+        showHeartAnimation();
+      } else if (currentEvent && currentEvent.isLiked) {
+        console.log('❤️ Лайк уже стоит - ничего не делаем');
+      }
       
-      Animated.timing(uiOpacity, {
-        toValue,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-      
-      setIsUIVisible(!isUIVisible);
-      console.log(isUIVisible ? '👁️ Скрываем UI' : '👁️ Показываем UI');
+      // Сбрасываем lastTap чтобы не считалось как одинарный тап
+      lastTap.current = 0;
+      return; // ← ВАЖНО! Выходим и НЕ меняем UI
     }
-  }, DOUBLE_PRESS_DELAY);
 
-  lastTap.current = now;
-};
+    // Запускаем таймер для одинарного тапа
+    setTimeout(() => {
+      if (now === lastTap.current) {
+        // Одинарный тап - переключение UI
+        const toValue = isUIVisible ? 0 : 1;
+        
+        Animated.timing(uiOpacity, {
+          toValue,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+        
+        setIsUIVisible(!isUIVisible);
+        console.log(isUIVisible ? '👁️ Скрываем UI' : '👁️ Показываем UI');
+      }
+    }, DOUBLE_PRESS_DELAY);
+
+    lastTap.current = now;
+  };
 
   // Обработчик для scrollToIndex
   const getItemLayout = (_data: any, index: number) => ({
@@ -428,11 +450,11 @@ const handleTap = () => {
           pointerEvents={isUIVisible ? 'auto' : 'none'}
         >
           <EventCard 
-  event={item}
-  onLike={() => handleLike(item.id)}
-  onComment={() => handleComment(item.id)}
-  onMapPress={() => handleMapPress(item.id)}
-/>
+            event={item}
+            onLike={() => handleLike(item.id)}
+            onComment={() => handleComment(item.id)}
+            onMapPress={() => handleMapPress(item.id)}
+          />
         </Animated.View>
       </View>
     </TouchableWithoutFeedback>

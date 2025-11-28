@@ -4,7 +4,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnp.*
 .pnp.js
-
+SECURITY_PRODUCTION_CHECKLIST.md
 .DS_Store
 Thumbs.db
 *.swp

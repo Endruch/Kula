@@ -11,6 +11,30 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // ═══════════════════════════════════════════════════════
+// 🎬 ВРЕМЕННЫЕ ТЕСТОВЫЕ ВИДЕО (удалить когда загрузка на сервер будет работать)
+// ═══════════════════════════════════════════════════════
+const TEMP_TEST_VIDEOS = [
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+  "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+];
+
+// Функция для случайного выбора видео
+const getRandomTestVideo = () => {
+  return TEMP_TEST_VIDEOS[Math.floor(Math.random() * TEMP_TEST_VIDEOS.length)];
+};
+// ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
 // ПРОВЕРКА СЕКРЕТОВ
 // ═══════════════════════════════════════════════════════
 if (!JWT_SECRET) {
@@ -72,8 +96,8 @@ router.post('/', authMiddleware, async (req, res) => {
       videoUrl,
     } = req.body;
 
-    // Валидация обязательных полей
-    if (!title || !location || !dateTime || !endDate || !category || !videoUrl) {
+    // Валидация обязательных полей (videoUrl теперь НЕ обязательный!)
+    if (!title || !location || !dateTime || !endDate || !category) {
       return res.status(400).json({ 
         error: 'Заполните все обязательные поля' 
       });
@@ -116,6 +140,10 @@ router.post('/', authMiddleware, async (req, res) => {
     // Извлекаем район из полного адреса
     const locationArea = extractLocationArea(location);
 
+    // 🎬 ВРЕМЕННО: Если нет videoUrl, подставляем случайное тестовое видео
+    const finalVideoUrl = getRandomTestVideo(); // 👈 ПРИНУДИТЕЛЬНО всегда случайное, игнорируем videoUrl
+console.log('🎬 Используется видео:', finalVideoUrl);
+
     const event = await prisma.event.create({
       data: {
         title,
@@ -130,7 +158,7 @@ router.post('/', authMiddleware, async (req, res) => {
         endDate: parsedEndDate,
         category,
         maxParticipants: maxParticipants || 10,
-        videoUrl,
+        videoUrl: finalVideoUrl, // 👈 Используем finalVideoUrl вместо videoUrl
         creatorId: req.userId,
       },
       include: {

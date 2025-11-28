@@ -2,20 +2,25 @@
   "expo": {
     "name": "Kula",
     "slug": "kula",
-    "version": "1.0.0",
+    "version": "0.0.2",
     "orientation": "portrait",
-  //  "icon": "./assets/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
-     // "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kula.app",
       "icon": "./assets/icon.png",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#1a1a2e"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Kula использует вашу геолокацию для отображения событий рядом с вами на карте.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Kula использует вашу геолокацию для отображения событий рядом с вами на карте."
@@ -23,19 +28,10 @@
     },
     "android": {
       "icon": "./assets/icon.png",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
       "splash": {
         "image": "./assets/splash.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#ffffff",
-        "mdpi": "./assets/splash.png",
-        "hdpi": "./assets/splash.png",
-        "xhdpi": "./assets/splash.png",
-        "xxhdpi": "./assets/splash.png",
-        "xxxhdpi": "./assets/splash.png"
+        "resizeMode": "cover",
+        "backgroundColor": "#1a1a2e"
       },
       "package": "com.kula.app",
       "permissions": [
@@ -47,15 +43,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
       [
         "expo-location",
         {

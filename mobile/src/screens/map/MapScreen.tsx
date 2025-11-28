@@ -1,125 +1,122 @@
 // ═══════════════════════════════════════════════════════
-// MAP SCREEN - ЭКРАН КАРТЫ
-// ═══════════════════════════════════════════════════════
-// Показывает все события на карте
-// Звёздочки: ⭐ активные, ⚪ завершённые
+// MAP SCREEN - КАРТА С OPENSTREETMAP (БЕЗ API КЛЮЧЕЙ)
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
+  TouchableOpacity,
+  Text,
   Alert,
   ActivityIndicator,
-  TouchableOpacity,
 } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
+import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
-import { getToken } from '../../services/auth';
 
-interface Event {
-  id: string;
-  title: string;
-  location: string;
-  latitude: number;
-  longitude: number;
-  dateTime: string;
-  endDate: string;
-  category: string;
-  creator: {
-    name: string;
-  };
-}
+// OSM Tile servers
+const OSM_STANDARD = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
-export default function MapScreen({ route }: any) {
+export default function MapScreen() {
   const navigation = useNavigation<any>();
-  const [events, setEvents] = useState<Event[]>([]);
+  const mapRef = useRef<MapView>(null);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mapType, setMapType] = useState<MapType>('standard');
-  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(
-    route?.params?.eventId || null
-  );
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  
-  const mapRef = useRef<MapView>(null);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [tileUrl, setTileUrl] = useState(OSM_STANDARD);
+  const [heading, setHeading] = useState(0);
 
   useEffect(() => {
-    requestLocationPermission();
-    loadEvents();
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          console.log('⚠️ Геолокация не разрешена, используем Нью-Йорк');
+          const fallback = {
+            latitude: 40.7128,
+            longitude: -74.006,
+          };
+          setUserLocation(fallback);
+          setRegion({
+            ...fallback,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+          return;
+        }
+
+        try {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          const coords = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          setUserLocation(coords);
+          setRegion({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+          console.log('📍 Геолокация получена:', coords);
+
+          // Подписываемся на изменения направления (компас)
+          Location.watchHeadingAsync((headingData) => {
+            setHeading(headingData.trueHeading);
+          });
+        } catch (locationError) {
+          console.log('⚠️ Ошибка получения координат, используем Нью-Йорк:', locationError);
+          const fallback = {
+            latitude: 40.7128,
+            longitude: -74.006,
+          };
+          setUserLocation(fallback);
+          setRegion({
+            ...fallback,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
+      } catch (error) {
+        console.error('❌ Критическая ошибка геолокации:', error);
+        const fallback = {
+          latitude: 40.7128,
+          longitude: -74.006,
+        };
+        setUserLocation(fallback);
+        setRegion({
+          ...fallback,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      }
+    };
+
+    getUserLocation();
   }, []);
 
-  // Фокусировка на выделенном событии
-  useEffect(() => {
-    if (highlightedEventId && events.length > 0) {
-      const highlightedEvent = events.find(e => e.id === highlightedEventId);
-      if (highlightedEvent) {
-        mapRef.current?.animateToRegion({
-          latitude: highlightedEvent.latitude,
-          longitude: highlightedEvent.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 500);
-      }
-    }
-  }, [highlightedEventId, events]);
-
-  // Восстанавливаем выделение при возврате на экран
   useFocusEffect(
     React.useCallback(() => {
-      if (route?.params?.eventId) {
-        setHighlightedEventId(route.params.eventId);
-      }
-    }, [route?.params?.eventId])
+      loadEvents();
+    }, [])
   );
 
-  // Запрос разрешения на геолокацию
-  const requestLocationPermission = async () => {
+  const loadEvents = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        console.log('⚠️ Геолокация отключена, используем Нью-Йорк');
-        return; // Не показываем алерт, просто используем fallback
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      console.log('📍 Геолокация получена:', location.coords.latitude, location.coords.longitude);
-    } catch (error) {
-      console.error('Ошибка получения геолокации:', error);
-      console.log('⚠️ Используем Нью-Йорк как fallback');
-    }
-  };
-
-  // Загрузка событий
-const loadEvents = async () => {
-  try {
-    setLoading(true);
-    // ✅ Токен автоматически через interceptor
-    const data = await eventsAPI.getAll();
-      
-      // Фильтруем события с координатами
-      const eventsWithCoords = data.filter(
-        (event: any) => event.latitude && event.longitude
-      );
-
-      console.log('🗺️ События с координатами:', eventsWithCoords.length);
-      console.log('📍 Координаты событий:', eventsWithCoords.map((e: any) => `${e.title}: ${e.latitude}, ${e.longitude}`));
-      
-      setEvents(eventsWithCoords);
+      setLoading(true);
+      const data = await eventsAPI.getAll();
+      setEvents(data);
+      console.log('✅ События загружены на карту:', data.length);
     } catch (error) {
       console.error('Ошибка загрузки событий:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить события');
@@ -128,89 +125,52 @@ const loadEvents = async () => {
     }
   };
 
-  // Проверка активно ли событие
-  const isEventActive = (endDate: string) => {
-    return new Date(endDate) > new Date();
+  const handleMarkerPress = (event: any) => {
+    navigation.navigate('EventDetail', { eventId: event.id });
   };
 
-  // Обработка клика на метку
-  const handleMarkerPress = (event: Event) => {
-    const status = isEventActive(event.endDate) ? 'Активное' : 'Завершённое';
-    Alert.alert(
-      event.title,
-      `${status}\n📍 ${event.location}\n👤 ${event.creator.name}`,
-      [
-        { text: 'Закрыть', style: 'cancel' },
-        { text: 'Подробнее', onPress: () => console.log('Открыть событие:', event.id) },
-      ]
-    );
+  const handleZoomIn = () => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta / 2,
+        longitudeDelta: region.longitudeDelta / 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
   };
 
-  // Переключение типа карты
+  const handleZoomOut = () => {
+    if (region) {
+      const newRegion = {
+        ...region,
+        latitudeDelta: region.latitudeDelta * 2,
+        longitudeDelta: region.longitudeDelta * 2,
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 300);
+    }
+  };
+
   const toggleMapType = () => {
-    setMapType(prev => prev === 'standard' ? 'satellite' : 'standard');
+    setTileUrl(prev => prev === OSM_STANDARD ? OSM_SATELLITE : OSM_STANDARD);
   };
 
-  // Увеличение масштаба
-  const zoomIn = () => {
-    mapRef.current?.getCamera().then(camera => {
-      if (camera.zoom !== undefined) {
-        mapRef.current?.animateCamera({
-          zoom: camera.zoom + 1,
-        }, { duration: 300 });
-      }
-    });
-  };
-
-  // Уменьшение масштаба
-  const zoomOut = () => {
-    mapRef.current?.getCamera().then(camera => {
-      if (camera.zoom !== undefined) {
-        mapRef.current?.animateCamera({
-          zoom: camera.zoom - 1,
-        }, { duration: 300 });
-      }
-    });
-  };
-
-  // Центрировать на пользователе
-  const centerOnUser = () => {
+  const handleCenterOnUser = () => {
     if (userLocation) {
-      mapRef.current?.animateToRegion({
+      const newRegion = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      }, 500);
+      };
+      setRegion(newRegion);
+      mapRef.current?.animateToRegion(newRegion, 500);
     }
   };
 
-  // Закрыть карту и вернуться на рилс
-  const closeMapAndGoBack = () => {
-    setHighlightedEventId(null);
-    
-    // Возвращаемся на вкладку Feed с индексом видео
-    navigation.navigate('FeedTab', {
-      scrollToIndex: route?.params?.fromFeedIndex || 0
-    });
-  };
-
-  // Начальный регион - геолокация пользователя или Нью-Йорк
-  const initialRegion = userLocation
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      }
-    : {
-        latitude: 40.7128, // Нью-Йорк
-        longitude: -74.0060,
-        latitudeDelta: 0.5, // Шире зум для fallback
-        longitudeDelta: 0.5,
-      };
-
-  if (loading) {
+  if (loading || !userLocation || !region) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00D4AA" />
@@ -224,27 +184,47 @@ const loadEvents = async () => {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={initialRegion}
-        mapType={mapType}
-        showsUserLocation={true}
+        region={region}
+        onRegionChangeComplete={setRegion}
+        showsUserLocation={false}
         showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        showsBuildings={false}
+        showsTraffic={false}
+        showsIndoors={false}
+        toolbarEnabled={false}
+        mapType="none"
+        pitchEnabled={false}
+        rotateEnabled={false}
+        liteMode={false}
+        loadingEnabled={false}
+        loadingIndicatorColor="#00D4AA"
+        loadingBackgroundColor="#1a1a2e"
       >
-        {/* Радиус 5км вокруг пользователя */}
-        {userLocation && (
-          <Circle
-            center={userLocation}
-            radius={5000}
-            fillColor="rgba(0, 212, 170, 0.1)"
-            strokeColor="rgba(0, 212, 170, 0.3)"
-            strokeWidth={2}
-          />
-        )}
+        <UrlTile
+          urlTemplate={tileUrl}
+          maximumZ={19}
+          flipY={false}
+        />
 
-        {/* Метки событий */}
-        {events
-          .filter(event => !highlightedEventId || event.id === highlightedEventId)
-          .map((event) => (
+        {/* Точка пользователя */}
+        <Marker
+          coordinate={userLocation}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View style={styles.userMarker}>
+            <View style={styles.userMarkerInner} />
+          </View>
+        </Marker>
+
+        {/* Маркеры событий */}
+        {events.map((event) => {
+          if (!event.latitude || !event.longitude) return null;
+
+          const isPast = new Date(event.dateTime) < new Date();
+
+          return (
             <Marker
               key={event.id}
               coordinate={{
@@ -254,68 +234,45 @@ const loadEvents = async () => {
               onPress={() => handleMarkerPress(event)}
             >
               <View style={styles.markerContainer}>
-                <Text style={[
-                  styles.markerEmoji,
-                  highlightedEventId === event.id && styles.markerHighlighted
-                ]}>
-                  {isEventActive(event.endDate) ? '⭐' : '⚪'}
+                <Text style={styles.markerText}>
+                  {isPast ? '⚪' : '⭐'}
                 </Text>
               </View>
             </Marker>
-          ))}
+          );
+        })}
       </MapView>
+      {/* Кнопки управления */}
+      <View style={styles.controls}>
+        <TouchableOpacity style={styles.controlButton} onPress={handleCenterOnUser}>
+          <Text style={styles.controlIcon}>📍</Text>
+        </TouchableOpacity>
 
-      {/* Кнопка переключения типа карты */}
-      <TouchableOpacity
-        style={[styles.controlButton, { top: 60, right: 20 }]}
-        onPress={toggleMapType}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.controlButtonText}>
-          {mapType === 'standard' ? '🛰️' : '🗺️'}
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton}>
+          <Text 
+            style={[
+              styles.controlIcon,
+              { transform: [{ rotate: `${heading}deg` }] }
+            ]}
+          >
+            🧭
+          </Text>
+        </TouchableOpacity>
 
-      {/* Кнопка центрирования на пользователе */}
-      <TouchableOpacity
-        style={[styles.controlButton, { top: 120, right: 20 }]}
-        onPress={centerOnUser}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.controlButtonText}>📍</Text>
-      </TouchableOpacity>
-
-      {/* Кнопки масштаба */}
-      <View style={styles.zoomButtons}>
-        <TouchableOpacity
-          style={styles.zoomButton}
-          onPress={zoomIn}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.zoomButtonText}>+</Text>
+        <TouchableOpacity style={styles.controlButton} onPress={handleZoomIn}>
+          <Text style={styles.controlText}>+</Text>
         </TouchableOpacity>
         
-        <View style={styles.zoomDivider} />
+        <TouchableOpacity style={styles.controlButton} onPress={handleZoomOut}>
+          <Text style={styles.controlText}>−</Text>
+        </TouchableOpacity>
         
-        <TouchableOpacity
-          style={styles.zoomButton}
-          onPress={zoomOut}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.zoomButtonText}>−</Text>
+        <TouchableOpacity style={styles.controlButton} onPress={toggleMapType}>
+          <Text style={styles.controlIcon}>
+            {tileUrl === OSM_STANDARD ? '🛰️' : '🗺️'}
+          </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Кнопка "Закрыть" - только если есть выделение */}
-      {highlightedEventId && (
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={closeMapAndGoBack}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.closeButtonText}>✕ Закрыть</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -338,21 +295,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
   },
+  userMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 122, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userMarkerInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 50,
-    height: 50,
   },
-  markerEmoji: {
-    fontSize: 32,
+  markerText: {
+    fontSize: 28,
   },
-  markerHighlighted: {
-    fontSize: 40,
+  controls: {
+    position: 'absolute',
+    right: 16,
+    bottom: 100,
+    gap: 12,
   },
   controlButton: {
-    position: 'absolute',
-    backgroundColor: '#00D4AA',
+    backgroundColor: '#fff',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -360,58 +333,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
-  controlButtonText: {
+  controlText: {
     fontSize: 24,
-  },
-  zoomButtons: {
-    position: 'absolute',
-    bottom: 120,
-    right: 20,
-    backgroundColor: '#00D4AA',
-    borderRadius: 25,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  zoomButton: {
-    width: 50,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  zoomButtonText: {
-    fontSize: 28,
-    color: '#fff',
     fontWeight: 'bold',
+    color: '#1a1a2e',
   },
-  zoomDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    backgroundColor: '#FF4444',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+  controlIcon: {
+    fontSize: 24,
   },
 });
