@@ -2,6 +2,7 @@
 // FAVORITES SCREEN - ИЗБРАННЫЕ СОБЫТИЯ
 // ═══════════════════════════════════════════════════════
 // Показывает события, которые пользователь добавил в избранное
+// Обновлено: верстка по дизайн-системе KULA
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
@@ -45,6 +46,13 @@ export default function FavoritesScreen() {
     navigation.navigate('EventDetail' as never, { eventId: event.id } as never);
   };
 
+  const handleRemoveFromFavorites = async (eventId: string) => {
+    // TODO: Реализовать удаление из избранного
+    console.log('Remove from favorites:', eventId);
+    // Оптимистичное обновление UI
+    setFavoriteEvents(prev => prev.filter(e => e.id !== eventId));
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -61,68 +69,102 @@ export default function FavoritesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Избранное</Text>
         <Text style={styles.headerSubtitle}>
-          События, которые вас интересуют
+          {favoriteEvents.length > 0 
+            ? `${favoriteEvents.length} ${favoriteEvents.length === 1 ? 'событие' : 'событий'}`
+            : 'Сохраняйте интересные события'
+          }
         </Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00D4AA" />
+          <ActivityIndicator size="large" color="#6E47F5" />
         </View>
       ) : favoriteEvents.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>⭐</Text>
-          <Text style={styles.emptyText}>Нет избранных событий</Text>
-          <Text style={styles.emptySubtext}>
-            Добавляйте события в избранное, чтобы не потерять их!
+          <View style={styles.emptyIconContainer}>
+            <Text style={styles.emptyIcon}>⭐</Text>
+          </View>
+          <Text style={styles.emptyTitle}>Пока пусто</Text>
+          <Text style={styles.emptyText}>
+            Добавляйте события в избранное{'\n'}
+            чтобы не потерять их
           </Text>
           <TouchableOpacity
             style={styles.exploreButton}
             onPress={() => navigation.navigate('FeedTab' as never)}
+            activeOpacity={0.8}
           >
-            <Text style={styles.exploreButtonText}>Искать события</Text>
+            <Text style={styles.exploreButtonText}>Открыть ленту</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.eventsList} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.eventsListContent}
+        >
           {favoriteEvents.map((event) => (
             <TouchableOpacity
               key={event.id}
               style={styles.eventCard}
               onPress={() => handleEventPress(event)}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
             >
-              {/* Превью */}
+              {/* Превью видео */}
               <View style={styles.eventThumbnail}>
-                <Text style={styles.eventThumbnailIcon}>🎬</Text>
+                <View style={styles.playIconContainer}>
+                  <Text style={styles.playIcon}>▶</Text>
+                </View>
+                {/* TODO: Добавить реальное превью видео */}
               </View>
 
-              {/* Информация */}
+              {/* Информация о событии */}
               <View style={styles.eventInfo}>
-                <Text style={styles.eventTitle} numberOfLines={1}>
-                  {event.title}
-                </Text>
-                <Text style={styles.eventLocation} numberOfLines={1}>
-                  📍 {event.locationArea}
-                </Text>
-                <Text style={styles.eventDate}>
-                  📅 {formatDate(event.dateTime)}
-                </Text>
-                <Text style={styles.eventStats}>
-                  👥 {event.participants}/{event.maxParticipants} участников
-                </Text>
-              </View>
+                <View style={styles.eventHeader}>
+                  <Text style={styles.eventTitle} numberOfLines={2}>
+                    {event.title}
+                  </Text>
+                  
+                  {/* Кнопка избранного */}
+                  <TouchableOpacity
+                    style={styles.favoriteButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFromFavorites(event.id);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text style={styles.favoriteIconActive}>⭐</Text>
+                  </TouchableOpacity>
+                </View>
 
-              {/* Кнопка удалить из избранного */}
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  // TODO: Убрать из избранного
-                }}
-              >
-                <Text style={styles.favoriteIcon}>⭐</Text>
-              </TouchableOpacity>
+                <View style={styles.eventDetails}>
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailIcon}>📍</Text>
+                    <Text style={styles.eventDetailText} numberOfLines={1}>
+                      {event.locationArea}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailIcon}>📅</Text>
+                    <Text style={styles.eventDetailText}>
+                      {formatDate(event.dateTime)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.eventDetailRow}>
+                    <Text style={styles.eventDetailIcon}>👥</Text>
+                    <Text style={[
+                      styles.eventDetailText,
+                      styles.participantsText
+                    ]}>
+                      {event.participants}/{event.maxParticipants}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -134,122 +176,199 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000', // Основной фон
   },
+  
+  // ═══════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 60, // Статус бар + 16
+    paddingBottom: 24,
+    paddingHorizontal: 16, // По дизайн-системе
+    backgroundColor: '#000000',
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
+    borderBottomColor: '#2A2A2A',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 28, // Заголовок 1
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 4,
+    lineHeight: 32,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: 14, // Текст второстепенный
+    color: '#8D8D8D',
+    lineHeight: 18,
   },
+
+  // ═══════════════════════════════════════════════════════
+  // LOADING
+  // ═══════════════════════════════════════════════════════
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000000',
   },
+
+  // ═══════════════════════════════════════════════════════
+  // EMPTY STATE
+  // ═══════════════════════════════════════════════════════
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
+    backgroundColor: '#000000',
   },
-  emptyIcon: {
-    fontSize: 100,
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 24,
   },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 12,
-    textAlign: 'center',
+  emptyIcon: {
+    fontSize: 56,
   },
-  emptySubtext: {
+  emptyTitle: {
+    fontSize: 22, // Заголовок 2
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    lineHeight: 28,
+  },
+  emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#8D8D8D',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 20,
   },
   exploreButton: {
-    backgroundColor: '#00D4AA',
+    backgroundColor: '#6E47F5', // Primary цвет
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 12,
+    shadowColor: '#6E47F5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   exploreButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    lineHeight: 20,
   },
+
+  // ═══════════════════════════════════════════════════════
+  // EVENTS LIST
+  // ═══════════════════════════════════════════════════════
   eventsList: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    backgroundColor: '#000000',
+  },
+  eventsListContent: {
+    padding: 16,
   },
   eventCard: {
-    backgroundColor: '#2d2d44',
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
+    backgroundColor: '#1E1E1E', // Поверхности
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  
+  // ═══════════════════════════════════════════════════════
+  // EVENT THUMBNAIL
+  // ═══════════════════════════════════════════════════════
+  eventThumbnail: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#121212',
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  playIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(110, 71, 245, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginLeft: 4, // Визуальное центрирование треугольника
+  },
+
+  // ═══════════════════════════════════════════════════════
+  // EVENT INFO
+  // ═══════════════════════════════════════════════════════
+  eventInfo: {
+    padding: 16,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
-  eventThumbnail: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    alignItems: 'center',
+  eventTitle: {
+    flex: 1,
+    fontSize: 16, // Текст основной
+    fontWeight: '600',
+    color: '#FFFFFF',
+    lineHeight: 22,
+    marginRight: 8,
+  },
+  
+  // ═══════════════════════════════════════════════════════
+  // FAVORITE BUTTON
+  // ═══════════════════════════════════════════════════════
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#121212',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
   },
-  eventThumbnailIcon: {
-    fontSize: 32,
+  favoriteIconActive: {
+    fontSize: 20,
   },
-  eventInfo: {
+
+  // ═══════════════════════════════════════════════════════
+  // EVENT DETAILS
+  // ═══════════════════════════════════════════════════════
+  eventDetails: {
+    gap: 8, // Расстояние между строками
+  },
+  eventDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventDetailIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    width: 20, // Фиксированная ширина для выравнивания
+  },
+  eventDetailText: {
+    fontSize: 14,
+    color: '#BDBDBD',
+    lineHeight: 18,
     flex: 1,
   },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  eventLocation: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 2,
-  },
-  eventDate: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 2,
-  },
-  eventStats: {
-    fontSize: 13,
-    color: '#00D4AA',
-  },
-  favoriteButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favoriteIcon: {
-    fontSize: 24,
+  participantsText: {
+    color: '#6E47F5', // Акцент на количестве участников
+    fontWeight: '600',
   },
 });
