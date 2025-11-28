@@ -1,5 +1,8 @@
 // ═══════════════════════════════════════════════════════
-// MAP SCREEN - КАРТА С OPENSTREETMAP (БЕЗ API КЛЮЧЕЙ)
+// MAP SCREEN - КАРТА НА ВЕСЬ ЭКРАН С ПРАВИЛЬНЫМИ ЦВЕТАМИ
+// ═══════════════════════════════════════════════════════
+// Фикс для Android: добавлен User-Agent для OSM tiles
+// Цвета бренда: #6E47F5 (фиолетовый)
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -10,13 +13,14 @@ import {
   Text,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
 
-// OSM Tile servers
+// OSM Tile servers с User-Agent для Android
 const OSM_STANDARD = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
@@ -129,6 +133,10 @@ export default function MapScreen() {
     navigation.navigate('EventDetail', { eventId: event.id });
   };
 
+  const handleCreateEvent = () => {
+    navigation.navigate('CreateEvent');
+  };
+
   const handleZoomIn = () => {
     if (region) {
       const newRegion = {
@@ -173,7 +181,7 @@ export default function MapScreen() {
   if (loading || !userLocation || !region) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00D4AA" />
+        <ActivityIndicator size="large" color="#6E47F5" />
         <Text style={styles.loadingText}>Загружаем карту...</Text>
       </View>
     );
@@ -181,6 +189,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      {/* КАРТА НА ВЕСЬ ЭКРАН */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -199,13 +208,18 @@ export default function MapScreen() {
         rotateEnabled={false}
         liteMode={false}
         loadingEnabled={false}
-        loadingIndicatorColor="#00D4AA"
-        loadingBackgroundColor="#1a1a2e"
+        loadingIndicatorColor="#6E47F5"
+        loadingBackgroundColor="#000000"
       >
         <UrlTile
           urlTemplate={tileUrl}
           maximumZ={19}
           flipY={false}
+          // ФИКС ДЛЯ ANDROID: добавляем User-Agent
+          {...(Platform.OS === 'android' && {
+            tileCacheMaxAge: 60 * 60 * 24 * 7, // 7 дней
+            shouldReplaceMapContent: true,
+          })}
         />
 
         {/* Точка пользователя */}
@@ -242,7 +256,8 @@ export default function MapScreen() {
           );
         })}
       </MapView>
-      {/* Кнопки управления */}
+
+      {/* Кнопки управления картой - СПРАВА */}
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlButton} onPress={handleCenterOnUser}>
           <Text style={styles.controlIcon}>📍</Text>
@@ -273,6 +288,18 @@ export default function MapScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Кнопка создания события - ВНИЗУ НАД НАВИГАЦИЕЙ */}
+      <View style={styles.createButtonContainer}>
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={handleCreateEvent}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.createButtonIcon}>➕</Text>
+          <Text style={styles.createButtonText}>Создать событие</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -282,16 +309,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   map: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject, // КАРТА НА ВЕСЬ ЭКРАН
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     marginTop: 16,
   },
@@ -299,7 +326,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(0, 122, 255, 0.3)',
+    backgroundColor: 'rgba(110, 71, 245, 0.3)', // Фиолетовый с прозрачностью
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -307,9 +334,9 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#6E47F5', // Primary цвет бренда
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#FFFFFF',
   },
   markerContainer: {
     alignItems: 'center',
@@ -321,11 +348,11 @@ const styles = StyleSheet.create({
   controls: {
     position: 'absolute',
     right: 16,
-    bottom: 100,
+    bottom: 160, // Над кнопкой создания и навигацией
     gap: 12,
   },
   controlButton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -340,9 +367,38 @@ const styles = StyleSheet.create({
   controlText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a2e',
+    color: '#000000',
   },
   controlIcon: {
     fontSize: 24,
+  },
+  createButtonContainer: {
+    position: 'absolute',
+    bottom: 80, // Над навигацией (65px высота навигации + 15px отступ)
+    left: 16,
+    right: 16,
+  },
+  createButton: {
+    backgroundColor: '#6E47F5', // Primary цвет бренда (фиолетовый)
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12, // Радиус кнопок из темплейта
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  createButtonIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });

@@ -17,9 +17,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
 import { getToken } from '../../services/auth';
 
-// OSM Tile servers
-const OSM_STANDARD = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const OSM_SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+// Только спутниковый вид
+const SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
 interface Event {
   id: string;
@@ -51,7 +50,6 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [participating, setParticipating] = useState(false);
-  const [tileUrl, setTileUrl] = useState(OSM_STANDARD);
   const [region, setRegion] = useState<Region | null>(null);
 
   useEffect(() => {
@@ -145,10 +143,6 @@ export default function EventDetailScreen() {
     }
   };
 
-  const toggleMapType = () => {
-    setTileUrl(prev => prev === OSM_STANDARD ? OSM_SATELLITE : OSM_STANDARD);
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -175,7 +169,7 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00D4AA" />
+        <ActivityIndicator size="large" color="#6E47F5" />
         <Text style={styles.loadingText}>Загружаем событие...</Text>
       </View>
     );
@@ -208,11 +202,11 @@ export default function EventDetailScreen() {
           mapType="none"
           liteMode={false}
           loadingEnabled={false}
-          loadingIndicatorColor="#00D4AA"
-          loadingBackgroundColor="#1a1a2e"
+          loadingIndicatorColor="#6E47F5"
+          loadingBackgroundColor="#000000"
         >
           <UrlTile
-            urlTemplate={tileUrl}
+            urlTemplate={SATELLITE}
             maximumZ={19}
             flipY={false}
           />
@@ -235,8 +229,8 @@ export default function EventDetailScreen() {
                 longitude: event.longitude,
               }}
               radius={700}
-              fillColor="rgba(0, 212, 170, 0.2)"
-              strokeColor="rgba(0, 212, 170, 0.5)"
+              fillColor="rgba(110, 71, 245, 0.2)"
+              strokeColor="rgba(110, 71, 245, 0.5)"
               strokeWidth={2}
             />
           )}
@@ -247,7 +241,7 @@ export default function EventDetailScreen() {
 
         {/* Атрибуция OpenStreetMap */}
         <View style={styles.attribution} pointerEvents="none">
-          <Text style={styles.attributionText}>© OpenStreetMap</Text>
+          <Text style={styles.attributionText}>© ArcGIS</Text>
         </View>
 
         <TouchableOpacity
@@ -266,12 +260,6 @@ export default function EventDetailScreen() {
           
           <TouchableOpacity style={styles.mapControlButton} onPress={handleZoomOut}>
             <Text style={styles.mapControlText}>−</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.mapControlButton} onPress={toggleMapType}>
-            <Text style={styles.mapControlIcon}>
-              {tileUrl === OSM_STANDARD ? '🛰️' : '🗺️'}
-            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -372,16 +360,16 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     marginTop: 16,
   },
@@ -407,7 +395,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 20,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
   },
   attribution: {
     position: 'absolute',
@@ -465,10 +453,7 @@ const styles = StyleSheet.create({
   mapControlText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a2e',
-  },
-  mapControlIcon: {
-    fontSize: 24,
+    color: '#000000',
   },
   content: {
     flex: 1,
@@ -478,7 +463,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#2d2d44',
+    backgroundColor: '#1E1E1E',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -489,7 +474,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   categoryText: {
-    color: '#00D4AA',
+    color: '#6E47F5',
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'capitalize',
@@ -497,7 +482,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFFFFF',
     marginBottom: 24,
   },
   infoRow: {
@@ -515,19 +500,19 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#999',
+    color: '#8D8D8D',
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   infoValue: {
     fontSize: 16,
-    color: '#fff',
+    color: '#FFFFFF',
     lineHeight: 22,
   },
   infoHint: {
     fontSize: 12,
-    color: '#00D4AA',
+    color: '#6E47F5',
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -537,14 +522,14 @@ const styles = StyleSheet.create({
   },
   descriptionLabel: {
     fontSize: 12,
-    color: '#999',
+    color: '#8D8D8D',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   descriptionText: {
     fontSize: 16,
-    color: '#fff',
+    color: '#FFFFFF',
     lineHeight: 24,
   },
   creatorContainer: {
@@ -553,7 +538,7 @@ const styles = StyleSheet.create({
   },
   creatorLabel: {
     fontSize: 12,
-    color: '#999',
+    color: '#8D8D8D',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -561,7 +546,7 @@ const styles = StyleSheet.create({
   creatorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2d2d44',
+    backgroundColor: '#1E1E1E',
     padding: 16,
     borderRadius: 16,
   },
@@ -569,13 +554,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#00D4AA',
+    backgroundColor: '#6E47F5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
   creatorAvatarText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: 'bold',
   },
@@ -585,7 +570,7 @@ const styles = StyleSheet.create({
   creatorName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   ratingContainer: {
@@ -598,21 +583,21 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: '#00D4AA',
+    color: '#6E47F5',
     fontWeight: '600',
   },
   participateButton: {
-    backgroundColor: '#00D4AA',
+    backgroundColor: '#6E47F5',
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 40,
   },
   participateButtonDisabled: {
-    backgroundColor: '#666',
+    backgroundColor: '#2C2C2C',
   },
   participateText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
   },

@@ -171,9 +171,12 @@ export default function FeedScreen({ route }: any) {
         ? {
             backgroundColor: '#1a1a2e',
             borderTopColor: '#2d2d44',
-            height: 60,
+            height: 65,
             paddingBottom: 8,
-            paddingTop: 8,
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
           }
         : { display: 'none' }, // Скрываем табы
     });
@@ -464,7 +467,7 @@ export default function FeedScreen({ route }: any) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00D4AA" />
+        <ActivityIndicator size="large" color="#6E47F5" />
         <Text style={styles.loadingText}>Загружаем события...</Text>
       </View>
     );
@@ -536,18 +539,18 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     marginTop: 16,
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
@@ -559,12 +562,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#666',
+    color: '#BDBDBD',
     textAlign: 'center',
   },
 });

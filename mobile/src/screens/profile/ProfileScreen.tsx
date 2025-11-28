@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════
 // Показывает созданные события пользователя
 // Возможность редактировать и удалять
+// Кнопка создания перенесена на MapScreen
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
@@ -48,10 +49,6 @@ const loadMyEvents = async () => {
     setLoading(false);
   }
 };
-
-  const handleCreateEvent = () => {
-    navigation.navigate('CreateEvent' as never);
-  };
 
   const handleDeleteEvent = (eventId: string, eventTitle: string) => {
     Alert.alert(
@@ -115,16 +112,6 @@ const loadMyEvents = async () => {
         <Text style={styles.email}>{userData?.email}</Text>
       </View>
 
-      {/* Кнопка создания события */}
-      <TouchableOpacity 
-        style={styles.createButton}
-        onPress={handleCreateEvent}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.createButtonIcon}>➕</Text>
-        <Text style={styles.createButtonText}>Создать событие</Text>
-      </TouchableOpacity>
-
       {/* Статистика */}
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
@@ -162,7 +149,7 @@ const loadMyEvents = async () => {
             <Text style={styles.emptyIcon}>📹</Text>
             <Text style={styles.emptyText}>Вы ещё не создали события</Text>
             <Text style={styles.emptySubtext}>
-              Нажмите "Создать событие" выше!
+              Перейдите на вкладку "Карта" для создания!
             </Text>
           </View>
         ) : (
@@ -259,30 +246,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  createButton: {
-    backgroundColor: '#00D4AA',
-    marginHorizontal: 20,
-    marginVertical: 20,
-    paddingVertical: 16,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createButtonIcon: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 20,
     marginBottom: 30,
+    marginTop: 20,
   },
   statCard: {
     width: '48%',
