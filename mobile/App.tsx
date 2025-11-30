@@ -9,23 +9,27 @@
 // App
 //  └─ GestureHandlerRootView (для свайпов)
 //     └─ AuthProvider
-//        └─ NavigationContainer
-//           └─ RootNavigator
+//        └─ ThemeProvider (✅ ДОБАВЛЯЕМ ТЕМУ)
+//           └─ NavigationContainer
+//              └─ RootNavigator
 // ═══════════════════════════════════════════════════════
 
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider } from './src/theme/ThemeContext'; // ✅ Импортируем тему
 import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+        <ThemeProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </ThemeProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

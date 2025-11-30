@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kula",
-    "slug": "kula",
+    "slug": "kula", 
     "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

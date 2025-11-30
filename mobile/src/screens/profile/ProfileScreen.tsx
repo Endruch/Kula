@@ -1,30 +1,35 @@
 // ═══════════════════════════════════════════════════════
 // PROFILE SCREEN - ПРОФИЛЬ С СОБЫТИЯМИ
 // ═══════════════════════════════════════════════════════
-// Показывает созданные события пользователя
-// Возможность редактировать и удалять
-// Кнопка создания перенесена на MapScreen
+// Файл: /Users/a00/mysterymeet/mobile/src/screens/ProfileScreen.tsx
+// 
+// Использование наших UI компонентов:
+// - Card для карточек событий и статистики
+// - Button для кнопки выхода
+// - Chip для тегов (если понадобятся)
+// - Полная интеграция с темой
 // ═══════════════════════════════════════════════════════
 
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  StyleSheet, 
-  TouchableOpacity, 
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { eventsAPI } from '../../services/api';
-
+import { useTheme } from '../../theme/ThemeContext';
+import { Card } from '../../components/UI/Card/Card';
+import { Button } from '../../components/UI/Button/Button';
+import { EventListItem } from '../../components/UI/EventListItem/EventListItem';
 
 export default function ProfileScreen() {
   const { userData, logout } = useAuth();
   const navigation = useNavigation();
+  const { theme } = useTheme();
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,20 +40,18 @@ export default function ProfileScreen() {
     }, [])
   );
 
-const loadMyEvents = async () => {
-  try {
-    setLoading(true);
-    
-    // ✅ Токен автоматически через interceptor
-    const events = await eventsAPI.getMy();
-    console.log('✅ Мои события загружены:', events.length);
-    setMyEvents(events);
-  } catch (error) {
-    console.error('Ошибка загрузки событий:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const loadMyEvents = async () => {
+    try {
+      setLoading(true);
+      const events = await eventsAPI.getMy();
+      console.log('✅ Мои события загружены:', events.length);
+      setMyEvents(events);
+    } catch (error) {
+      console.error('Ошибка загрузки событий:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteEvent = (eventId: string, eventTitle: string) => {
     Alert.alert(
@@ -57,19 +60,18 @@ const loadMyEvents = async () => {
       [
         { text: 'Отмена', style: 'cancel' },
         {
-  text: 'Удалить', 
-  style: 'destructive',
-  onPress: async () => {
-    try {
-      // ✅ Токен автоматически через interceptor
-      await eventsAPI.delete(eventId);
-      Alert.alert('Успех', 'Событие удалено');
-      loadMyEvents();
-    } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось удалить событие');
-    }
-  }
-},
+          text: 'Удалить', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eventsAPI.delete(eventId);
+              Alert.alert('Успех', 'Событие удалено');
+              loadMyEvents();
+            } catch (error) {
+              Alert.alert('Ошибка', 'Не удалось удалить событие');
+            }
+          }
+        },
       ]
     );
   };
@@ -100,298 +102,259 @@ const loadMyEvents = async () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={{ 
+      flex: 1, 
+      backgroundColor: theme.colors.background.primary,
+      paddingTop: theme.metrics.device.statusBarHeight,
+    }}>
+      
       {/* Шапка профиля */}
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+      <View style={{
+        alignItems: 'center',
+        paddingTop: theme.spacing.xl,
+        paddingBottom: theme.spacing.base,
+      }}>
+        <View style={{
+          width: 100,
+          height: 100,
+          borderRadius: 50,
+          backgroundColor: theme.colors.primary[500],
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: theme.spacing.base,
+        }}>
+          <Text style={{
+            fontSize: 40,
+            fontWeight: 'bold',
+            color: theme.colors.text.onAccent,
+          }}>
             {userData?.username?.charAt(0).toUpperCase() || '?'}
           </Text>
         </View>
-        <Text style={styles.username}>@{userData?.username}</Text>
-        <Text style={styles.email}>{userData?.email}</Text>
+        <Text style={{
+          fontSize: theme.typography.h2.fontSize,
+          fontWeight: theme.typography.h2.fontWeight,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.xs,
+        }}>
+          @{userData?.username}
+        </Text>
+        <Text style={{
+          fontSize: theme.typography.caption.fontSize,
+          color: theme.colors.text.secondary,
+        }}>
+          {userData?.email}
+        </Text>
       </View>
 
       {/* Статистика */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>📅</Text>
-          <Text style={styles.statNumber}>{myEvents.length}</Text>
-          <Text style={styles.statLabel}>Создано</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>✅</Text>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Посещено</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>👥</Text>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Друзей</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statIcon}>🤝</Text>
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Встреч</Text>
-        </View>
+      <View style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: theme.spacing.base,
+        marginBottom: theme.spacing.xl,
+        marginTop: theme.spacing.base,
+      }}>
+        <Card variant="filled" padding="medium" style={{
+          width: '48%',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+          marginHorizontal: '1%',
+        }}>
+          <Text style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>📅</Text>
+          <Text style={{
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: theme.colors.primary[500],
+            marginBottom: theme.spacing.xs,
+          }}>
+            {myEvents.length}
+          </Text>
+          <Text style={{
+            fontSize: theme.typography.small.fontSize,
+            color: theme.colors.text.tertiary,
+            textAlign: 'center',
+          }}>
+            Создано
+          </Text>
+        </Card>
+
+        <Card variant="filled" padding="medium" style={{
+          width: '48%',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+          marginHorizontal: '1%',
+        }}>
+          <Text style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>✅</Text>
+          <Text style={{
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: theme.colors.primary[500],
+            marginBottom: theme.spacing.xs,
+          }}>
+            0
+          </Text>
+          <Text style={{
+            fontSize: theme.typography.small.fontSize,
+            color: theme.colors.text.tertiary,
+            textAlign: 'center',
+          }}>
+            Посещено
+          </Text>
+        </Card>
+
+        <Card variant="filled" padding="medium" style={{
+          width: '48%',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+          marginHorizontal: '1%',
+        }}>
+          <Text style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>👥</Text>
+          <Text style={{
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: theme.colors.primary[500],
+            marginBottom: theme.spacing.xs,
+          }}>
+            0
+          </Text>
+          <Text style={{
+            fontSize: theme.typography.small.fontSize,
+            color: theme.colors.text.tertiary,
+            textAlign: 'center',
+          }}>
+            Друзей
+          </Text>
+        </Card>
+
+        <Card variant="filled" padding="medium" style={{
+          width: '48%',
+          alignItems: 'center',
+          marginBottom: theme.spacing.sm,
+          marginHorizontal: '1%',
+        }}>
+          <Text style={{ fontSize: 32, marginBottom: theme.spacing.sm }}>🤝</Text>
+          <Text style={{
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: theme.colors.primary[500],
+            marginBottom: theme.spacing.xs,
+          }}>
+            0
+          </Text>
+          <Text style={{
+            fontSize: theme.typography.small.fontSize,
+            color: theme.colors.text.tertiary,
+            textAlign: 'center',
+          }}>
+            Встреч
+          </Text>
+        </Card>
+      </View>
+
+      {/* Раздел экспериментов */}
+      <View style={{ paddingHorizontal: theme.spacing.base, marginBottom: theme.spacing.xl }}>
+        <Text style={{
+          fontSize: theme.typography.h3.fontSize,
+          fontWeight: theme.typography.h3.fontWeight,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.base,
+        }}>
+          Эксперименты
+        </Text>
+        
+        <Card 
+          variant="elevated" 
+          padding="medium"
+          style={{ borderLeftWidth: 4, borderLeftColor: theme.colors.primary[500] }}
+        >
+          <Text style={{
+            fontSize: theme.typography.bodyBold.fontSize,
+            fontWeight: theme.typography.bodyBold.fontWeight,
+            color: theme.colors.text.primary,
+            marginBottom: theme.spacing.xs,
+          }}>
+            🎨 Logo Particles
+          </Text>
+          <Text style={{
+            fontSize: theme.typography.small.fontSize,
+            color: theme.colors.text.secondary,
+          }}>
+            Анимация частиц
+          </Text>
+        </Card>
       </View>
 
       {/* Мои события */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Мои события</Text>
+      <View style={{ paddingHorizontal: theme.spacing.base, marginBottom: theme.spacing.xl }}>
+        <Text style={{
+          fontSize: theme.typography.h3.fontSize,
+          fontWeight: theme.typography.h3.fontWeight,
+          color: theme.colors.text.primary,
+          marginBottom: theme.spacing.base,
+        }}>
+          Мои события
+        </Text>
         
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#00D4AA" />
-          </View>
+          <Card variant="filled" padding="large" style={{ alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={theme.colors.primary[500]} />
+          </Card>
         ) : myEvents.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📹</Text>
-            <Text style={styles.emptyText}>Вы ещё не создали события</Text>
-            <Text style={styles.emptySubtext}>
+          <Card variant="filled" padding="large" style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 60, marginBottom: theme.spacing.base, color: theme.colors.text.secondary }}>
+              📹
+            </Text>
+            <Text style={{
+              fontSize: theme.typography.bodyBold.fontSize,
+              fontWeight: theme.typography.bodyBold.fontWeight,
+              color: theme.colors.text.primary,
+              marginBottom: theme.spacing.sm,
+            }}>
+              Вы ещё не создали события
+            </Text>
+            <Text style={{
+              fontSize: theme.typography.caption.fontSize,
+              color: theme.colors.text.secondary,
+              textAlign: 'center',
+            }}>
               Перейдите на вкладку "Карта" для создания!
             </Text>
-          </View>
+          </Card>
         ) : (
-          <View style={styles.eventsList}>
+          <View style={{ gap: theme.spacing.sm }}>
             {myEvents.map((event) => (
-              <View key={event.id} style={styles.eventCard}>
-                {/* Превью видео */}
-                <View style={styles.eventThumbnail}>
-                  <Text style={styles.eventThumbnailIcon}>🎬</Text>
-                </View>
+  <EventListItem
+    key={event.id}
+    event={event}
+    variant="withActions"
+    onEdit={() => Alert.alert('Скоро', 'Редактирование в разработке')}
+    onDelete={() => handleDeleteEvent(event.id, event.title)}
+  />
+))}
 
-                {/* Информация */}
-                <View style={styles.eventInfo}>
-                  <Text style={styles.eventTitle} numberOfLines={1}>
-                    {event.title}
-                  </Text>
-                  <Text style={styles.eventLocation} numberOfLines={1}>
-                    📍 {event.location}
-                  </Text>
-                  <Text style={styles.eventDate}>
-                    📅 {formatDate(event.dateTime)}
-                  </Text>
-                  <Text style={styles.eventStats}>
-                    👥 {event.participants}/{event.maxParticipants} участников
-                  </Text>
-                </View>
-
-                {/* Кнопки действий */}
-                <View style={styles.eventActions}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => Alert.alert('Скоро', 'Редактирование в разработке')}
-                  >
-                    <Text style={styles.actionIcon}>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDeleteEvent(event.id, event.title)}
-                  >
-                    <Text style={styles.actionIcon}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
           </View>
         )}
       </View>
 
       {/* Кнопка выхода */}
-      <TouchableOpacity 
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoutText}>Выйти</Text>
-      </TouchableOpacity>
+      <View style={{ paddingHorizontal: theme.spacing.base, marginBottom: theme.spacing.base }}>
+        <Button
+          variant="primary"
+          size="large"
+          title="Выйти"
+          onPress={handleLogout}
+        />
+      </View>
 
-      <Text style={styles.version}>KULA MVP v1.0.0</Text>
+      <Text style={{
+        textAlign: 'center',
+        color: theme.colors.text.tertiary,
+        fontSize: theme.typography.small.fontSize,
+        marginBottom: theme.spacing.xl,
+      }}>
+        KULA MVP v1.0.0
+      </Text>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#00D4AA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  avatarText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-    marginTop: 20,
-  },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#2d2d44',
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-    marginHorizontal: '1%',
-  },
-  statIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#00D4AA',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyState: {
-    backgroundColor: '#2d2d44',
-    padding: 40,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 60,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  eventsList: {
-    gap: 12,
-  },
-  eventCard: {
-    backgroundColor: '#2d2d44',
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  eventThumbnail: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  eventThumbnailIcon: {
-    fontSize: 32,
-  },
-  eventInfo: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  eventLocation: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 2,
-  },
-  eventDate: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 2,
-  },
-  eventStats: {
-    fontSize: 13,
-    color: '#00D4AA',
-  },
-  eventActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButton: {
-    backgroundColor: '#ff4757',
-  },
-  actionIcon: {
-    fontSize: 18,
-  },
-  logoutButton: {
-    backgroundColor: '#ff4757',
-    marginHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  version: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 12,
-    marginBottom: 40,
-  },
-});

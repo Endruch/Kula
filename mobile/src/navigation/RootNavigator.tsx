@@ -11,6 +11,7 @@ import MainTabNavigator from './MainTabNavigator';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import CreateEventScreen from '../screens/create/CreateEventScreen';
 import EventDetailScreen from '../screens/event/EventDetailScreen';
+import LogoParticlesScreen from '../screens/experimental/LogoParticlesScreen'; // ✅ исправлен импорт
 
 const Stack = createNativeStackNavigator();
 
@@ -47,13 +48,20 @@ export default function RootNavigator() {
               presentation: 'modal',
             }}
           />
-          {/* ← ДОБАВЬ ЭТО */}
           <Stack.Screen 
             name="EventDetail" 
             component={EventDetailScreen}
             options={{ 
               headerShown: false,
-              presentation: 'card', // Обычный переход
+              presentation: 'card',
+            }}
+          />
+          <Stack.Screen 
+            name="LogoParticlesScreen" // ✅ используем твое название
+            component={LogoParticlesScreen} 
+            options={{ 
+              headerShown: true,
+              title: 'Logo Particles' // ✅ название для хедера
             }}
           />
         </>
